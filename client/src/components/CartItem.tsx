@@ -10,11 +10,11 @@ interface CartItemProps {
 
 export function CartItem({ coordinates, price, color, onDelete }: CartItemProps) {
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg border">
+        <div className="flex items-center justify-between p-3 rounded-lg border bg-white">
             <div className="flex items-center gap-3">
                 <div className={`w-12 h-12 rounded-lg ${color}`} />
                 <div>
-                    <div className="font-medium">{coordinates}</div>
+                    <div className="font-medium text-gray-900">{coordinates}</div>
                     <div className="text-sm text-gray-500">${price.toFixed(2)}</div>
                 </div>
             </div>

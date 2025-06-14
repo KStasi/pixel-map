@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import map from "/map-transparent.svg";
-import { useMap } from "../context/MapContext";
+import { useMapContext } from "../context/MapContext";
 
 export function Map() {
-    const { svgRef, initializeMapPaths } = useMap();
+    const { svgRef, initializeMapPaths, isLoading, error } = useMapContext();
 
     useEffect(() => {
         const objectElement = svgRef.current;
@@ -29,10 +29,14 @@ export function Map() {
         return () => {
             objectElement.removeEventListener("load", handleLoad);
         };
-    }, [initializeMapPaths]);
+    }, [svgRef, initializeMapPaths]);
+
+    if (error) {
+        return <div className="text-red-500">Error: {error}</div>;
+    }
 
     return (
-        <div className=" min-w-[1450px] min-h-[800px] flex items-center justify-center bg-cover bg-center">
+        <div className="min-w-[1450px] min-h-[800px] flex items-center justify-center bg-cover bg-center">
             <object
                 ref={svgRef}
                 data={map}

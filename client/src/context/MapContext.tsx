@@ -1,58 +1,27 @@
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import { createContext, useContext, useCallback, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
-
-interface SelectedPath {
-    id: string;
-    coordinates: string;
-    color: string;
-}
-
-interface MapContextType {
-    selectedPaths: SelectedPath[];
-    svgRef: React.RefObject<HTMLObjectElement | null>;
-    initializeMapPaths: () => void;
-    handlePathClick: (pathId: string) => void;
-}
+import type { MapContextType } from "../types/map";
+import { useMap } from "../hooks/useMap";
 
 const MapContext = createContext<MapContextType | null>(null);
 
 export function MapProvider({ children }: { children: ReactNode }) {
     const svgRef = useRef<HTMLObjectElement>(null);
-    const [selectedPaths, setSelectedPaths] = useState<SelectedPath[]>([]);
+    const { state, fetchMap, togglePixelSelection, isPixelSelected, getPixelColor } = useMap();
 
-    const handlePathClick = useCallback((pathId: string) => {
-        const svgDoc = svgRef.current?.contentDocument;
-        if (!svgDoc) return;
+    const handlePathClick = useCallback(
+        (pathId: string) => {
+            const svgDoc = svgRef.current?.contentDocument;
+            if (!svgDoc) return;
 
-        const path = svgDoc.getElementById(pathId);
-        if (!path) return;
+            const path = svgDoc.getElementById(pathId);
+            if (!path) return;
 
-        setSelectedPaths((prevPaths) => {
-            const isSelected = prevPaths.some((p) => p.id === pathId);
-
-            if (isSelected) {
-                // If already selected, remove it and restore original color
-                path.style.fill = "#2AFF6B";
-                return prevPaths.filter((p) => p.id !== pathId);
-            } else {
-                // If not selected, add it and set yellow color
-                path.style.fill = "#FFD700";
-
-                // Extract coordinates from path ID (format: "path-X:Y")
-                const coords = pathId.replace("path-", "");
-                const formattedCoords = `Id: ${coords}`;
-
-                return [
-                    ...prevPaths,
-                    {
-                        id: pathId,
-                        coordinates: formattedCoords,
-                        color: "bg-yellow-500",
-                    },
-                ];
-            }
-        });
-    }, []);
+            togglePixelSelection(pathId);
+            path.style.fill = isPixelSelected(pathId) ? "#FFD700" : getPixelColor(pathId);
+        },
+        [togglePixelSelection, isPixelSelected, getPixelColor]
+    );
 
     const handleOnMouseEnter = useCallback((pathId: string) => {
         const svgDoc = svgRef.current?.contentDocument;
@@ -62,17 +31,41 @@ export function MapProvider({ children }: { children: ReactNode }) {
         if (!path) return;
         path.style.fill = "red";
     }, []);
-    const handleOnMouseLeave = useCallback((pathId: string) => {
+
+    const handleOnMouseLeave = useCallback(
+        (pathId: string) => {
+            const svgDoc = svgRef.current?.contentDocument;
+            if (!svgDoc) return;
+
+            const path = svgDoc.getElementById(pathId);
+            if (!path) return;
+
+            if (isPixelSelected(pathId)) {
+                path.style.fill = "#FFD700";
+                return;
+            }
+
+            path.style.fill = getPixelColor(pathId);
+        },
+        [isPixelSelected, getPixelColor]
+    );
+
+    const updateMapColors = useCallback(() => {
         const svgDoc = svgRef.current?.contentDocument;
         if (!svgDoc) return;
 
-        const path = svgDoc.getElementById(pathId);
-        if (!path) return;
-        console.log(path.style.fill);
-        if (path.style.fill !== "rgb(255, 215, 0)") {
-            path.style.fill = "#2AFF6B"; // Back to green when not hovering
-        }
-    }, []);
+        const paths = svgDoc.querySelectorAll("path");
+        paths.forEach((path) => {
+            const pathId = path.id;
+            if (!pathId) return;
+
+            if (isPixelSelected(pathId)) {
+                path.style.fill = "#FFD700";
+            } else {
+                path.style.fill = getPixelColor(pathId);
+            }
+        });
+    }, [isPixelSelected, getPixelColor]);
 
     const initializeMapPaths = useCallback(() => {
         const svgDoc = svgRef.current?.contentDocument;
@@ -92,9 +85,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
             path.style.pointerEvents = "auto";
             path.style.cursor = "pointer";
-            path.style.fill = "#2AFF6B"; // Set initial color to green
 
-            // Add hover effect using addEventListener
             path.onmouseenter = (e) => {
                 e.preventDefault();
                 handleOnMouseEnter(pathId);
@@ -104,34 +95,32 @@ export function MapProvider({ children }: { children: ReactNode }) {
                 handleOnMouseLeave(pathId);
             };
         });
-    }, [handlePathClick]);
 
+        updateMapColors();
+    }, [handlePathClick, handleOnMouseEnter, handleOnMouseLeave, updateMapColors]);
+
+    // Initial fetch and periodic updates
     useEffect(() => {
-        const objectElement = svgRef.current;
-        if (!objectElement) return;
+        fetchMap();
+        const intervalId = setInterval(fetchMap, 5000);
+        return () => clearInterval(intervalId);
+    }, [fetchMap]);
 
-        const handleLoad = () => {
-            console.log("SVG loaded");
-            initializeMapPaths();
-        };
-
-        if (objectElement.contentDocument) {
-            handleLoad();
-        }
-
-        objectElement.addEventListener("load", handleLoad);
-        return () => {
-            objectElement.removeEventListener("load", handleLoad);
-        };
-    }, [initializeMapPaths]);
+    // Update colors when map data changes
+    useEffect(() => {
+        updateMapColors();
+    }, [state.pixels, state.selectedPixelIds, updateMapColors]);
 
     return (
         <MapContext.Provider
             value={{
-                selectedPaths,
                 svgRef,
+                selectedPixelIds: state.selectedPixelIds,
+                togglePixelSelection,
+                getPixelColor,
+                isLoading: state.isLoading,
+                error: state.error,
                 initializeMapPaths,
-                handlePathClick,
             }}
         >
             {children}
@@ -139,10 +128,10 @@ export function MapProvider({ children }: { children: ReactNode }) {
     );
 }
 
-export function useMap() {
+export function useMapContext() {
     const context = useContext(MapContext);
     if (!context) {
-        throw new Error("useMap must be used within a MapProvider");
+        throw new Error("useMapContext must be used within a MapProvider");
     }
     return context;
 }
