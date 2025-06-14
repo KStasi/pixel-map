@@ -2,6 +2,8 @@ import { X } from "lucide-react";
 import { Button } from "./ui/button";
 import { CartItem } from "./CartItem";
 import { useMap } from "../context/MapContext";
+import { usePixelPrices } from "../hooks/usePixelPrices";
+import { useMemo } from "react";
 
 interface AccountPanelProps {
     isOpen: boolean;
@@ -13,6 +15,15 @@ const mockBalance = 1000;
 
 export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
     const { selectedPaths, handlePathClick } = useMap();
+    const { prices, isLoading: isLoadingPrices } = usePixelPrices();
+
+    const pathsWithPrices = useMemo(() => {
+        return selectedPaths.map((path) => {
+            const numericId = path.id.replace("path-", "").replace(":", "");
+            const price = prices.find((p) => p.id.toString() === numericId)?.price ?? 0;
+            return { ...path, price };
+        });
+    }, [selectedPaths, prices]);
 
     if (!isOpen) return null;
 
@@ -51,11 +62,11 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                 <div>
                     <h3 className="text-lg font-semibold mb-4 text-gray-900">Cart</h3>
                     <div className="space-y-3">
-                        {selectedPaths.map((path) => (
+                        {pathsWithPrices.map((path) => (
                             <CartItem
                                 key={path.id}
                                 coordinates={path.coordinates}
-                                price={50} // You might want to make this dynamic based on some logic
+                                price={path.price}
                                 color={path.color}
                                 onDelete={() => handlePathClick(path.id)}
                             />

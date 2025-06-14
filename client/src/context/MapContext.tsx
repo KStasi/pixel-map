@@ -21,7 +21,6 @@ export function MapProvider({ children }: { children: ReactNode }) {
     const [selectedPaths, setSelectedPaths] = useState<SelectedPath[]>([]);
 
     const handlePathClick = useCallback((pathId: string) => {
-        console.log("Clicked path:", pathId);
         const svgDoc = svgRef.current?.contentDocument;
         if (!svgDoc) return;
 
@@ -41,8 +40,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
                 // Extract coordinates from path ID (format: "path-X:Y")
                 const coords = pathId.replace("path-", "");
-                const [x, y] = coords.split(":");
-                const formattedCoords = `X: ${x}, Y: ${y}`;
+                const formattedCoords = `Id: ${coords}`;
 
                 return [
                     ...prevPaths,
@@ -69,7 +67,6 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
             path.onclick = (e) => {
                 e.preventDefault();
-                console.log("Path clicked:", pathId);
                 handlePathClick(pathId);
             };
 
@@ -99,7 +96,14 @@ export function MapProvider({ children }: { children: ReactNode }) {
     }, [initializeMapPaths]);
 
     return (
-        <MapContext.Provider value={{ selectedPaths, svgRef, initializeMapPaths, handlePathClick }}>
+        <MapContext.Provider
+            value={{
+                selectedPaths,
+                svgRef,
+                initializeMapPaths,
+                handlePathClick,
+            }}
+        >
             {children}
         </MapContext.Provider>
     );
