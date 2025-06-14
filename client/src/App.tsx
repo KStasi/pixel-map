@@ -5,6 +5,8 @@ import { GameScreen } from "./components/GameScreen";
 import { ErrorModal } from "./components/ErrorModal";
 import { BackgroundAnimation } from "./components/BackgroundAnimation";
 import { GameLobbyIntegrated } from "./components/GameLobbyIntegrated";
+import { Header } from "./components/Header";
+import { Map } from "./components/Map";
 import type { JoinRoomPayload, AvailableRoom, AvailableRoomsMessage, Direction } from "./types";
 import "./App.css";
 import { useWebSocketNitrolite } from "./hooks/useWebSocketNitrolite";
@@ -19,15 +21,15 @@ function App() {
     const [gameView, setGameView] = useState<"lobby" | "game">("lobby");
 
     // WebSocket connection
-    const { 
-        error: wsError, 
-        lastMessage, 
-        joinRoom, 
-        changeDirection, 
-        startGame, 
+    const {
+        error: wsError,
+        lastMessage,
+        joinRoom,
+        changeDirection,
+        startGame,
         getAvailableRooms,
         sendAppSessionSignature,
-        sendAppSessionStartGame
+        sendAppSessionStartGame,
     } = useWebSocket();
     useWebSocketNitrolite();
     const { client, loading: nitroliteLoading, error: nitroliteError } = useNitrolite();
@@ -66,7 +68,7 @@ function App() {
         awaitingHostStart,
         signAndStartGame,
         isSigningInProgress,
-        signatureError
+        signatureError,
     } = useGameState(lastMessage, eoaAddress, sendAppSessionSignature, sendAppSessionStartGame);
 
     // Handle errors
@@ -79,7 +81,7 @@ function App() {
 
         if (combinedError) {
             console.log("Error detected:", combinedError);
-            
+
             // Don't show error modal for MetaMask connection message
             if (combinedError === "MetaMask not connected. Please connect your wallet.") {
                 setShowError(false);
@@ -182,62 +184,71 @@ function App() {
     };
 
     return (
-        <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 relative overflow-hidden">
-            {/* Background particles */}
-            <BackgroundAnimation />
+        <div className="min-h-screen w-full flex flex-col relative overflow-hidden">
+            {/* Header - Add z-50 to ensure it's above all other elements */}
+            <div className="relative z-50">
+                <Header />
+            </div>
 
-            {/* Background grid pattern */}
+            {/* Map under header */}
+            <div className="w-full flex justify-center py-4 relative z-40">
+                <Map />
+            </div>
+
+            {/* Background particles - Lower z-index */}
+            <div className="z-0">
+                <BackgroundAnimation />
+            </div>
+
+            {/* Background grid pattern - Lower z-index */}
             <div className="fixed inset-0 bg-grid-pattern opacity-10 z-0"></div>
 
-            {/* Decorative glow effects */}
+            {/* Decorative glow effects - Lower z-index */}
             <div className="fixed top-[-50%] left-[-20%] w-[140%] h-[140%] bg-gradient-radial from-viper-green/5 to-transparent opacity-30 blur-3xl z-0"></div>
             <div className="fixed bottom-[-50%] right-[-20%] w-[140%] h-[140%] bg-gradient-radial from-viper-purple/5 to-transparent opacity-30 blur-3xl z-0"></div>
 
-            {/* Only show the app header in game view */}
-            {gameView === "game" && (
-                <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
-                    <div className="text-center backdrop-blur-sm bg-viper-charcoal/20 rounded-lg px-6 py-3 border border-viper-green/20">
-                        <h1 className="text-2xl sm:text-3xl font-bold font-pixel leading-none tracking-wider">
-                            <div className="flex items-center justify-center gap-2">
-                                <span className="text-glow-green drop-shadow-[0_0_15px_rgba(42,255,107,0.5)]">VIPER</span>
-                                <div className="w-1.5 h-1.5 bg-viper-yellow rounded-full animate-pulse"></div>
-                                <span className="text-glow-purple drop-shadow-[0_0_15px_rgba(180,37,255,0.5)]">DUEL</span>
-                            </div>
-                        </h1>
-                        <p className="text-viper-grey text-xs mt-1 font-mono tracking-wide">→ Out-slither your rival ←</p>
+            {/* Main content - Add z-10 to be above background but below header */}
+            <div className="flex-1 flex flex-col justify-center items-center p-4 relative z-10">
+                {/* Only show the app header in game view */}
+                {gameView === "game" && (
+                    <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
+                        <div className="text-center backdrop-blur-sm bg-viper-charcoal/20 rounded-lg px-6 py-3 border border-viper-green/20">
+                            <h1 className="text-2xl sm:text-3xl font-bold font-pixel leading-none tracking-wider">
+                                VIPER DUEL
+                            </h1>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Main Content */}
-            <div className="max-w-xl w-full relative z-10">
+                {/* Game content */}
                 {gameView === "lobby" ? (
-                    <GameLobbyIntegrated 
-                        onJoinRoom={handleJoinRoom} 
-                        availableRooms={availableRooms} 
-                        onGetAvailableRooms={handleGetAvailableRooms}
+                    <GameLobbyIntegrated
+                        onJoinRoom={handleJoinRoom}
+                        availableRooms={availableRooms}
                         onlineUsers={onlineUsers}
+                        onGetAvailableRooms={handleGetAvailableRooms}
                     />
                 ) : (
                     <GameScreen
                         gameState={gameState}
-                        playerId={playerId}
+                        gameOver={gameOver}
+                        onDirectionChange={handleDirectionChange}
+                        onStartGame={handleStartGame}
+                        onPlayAgain={handlePlayAgain}
+                        isHost={isHost}
                         isRoomReady={isRoomReady}
                         isGameStarted={isGameStarted}
-                        isHost={isHost}
-                        gameOver={gameOver}
+                        playerId={playerId}
                         opponentAddress={getOpponentAddress()}
                         roomId={roomId}
-                        onDirectionChange={handleDirectionChange}
-                        onPlayAgain={handlePlayAgain}
-                        onStartGame={handleStartGame}
                         awaitingHostStart={awaitingHostStart}
                         isSigningInProgress={isSigningInProgress}
                     />
                 )}
-
-                {showError && <ErrorModal message={errorDisplay || "An unknown error occurred"} onClose={handleErrorClose} />}
             </div>
+
+            {/* Error Modal */}
+            {showError && <ErrorModal message={errorDisplay || "An error occurred"} onClose={handleErrorClose} />}
         </div>
     );
 }
