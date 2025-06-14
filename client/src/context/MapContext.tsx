@@ -7,7 +7,7 @@ const MapContext = createContext<MapContextType | null>(null);
 
 export function MapProvider({ children }: { children: ReactNode }) {
     const svgRef = useRef<HTMLObjectElement>(null);
-    const { state, fetchMap, togglePixelSelection, isPixelSelected, getPixelColor } = useMap();
+    const { state, fetchMap, togglePixelSelection, isPixelSelected, getPixelColor, updatePixelColor } = useMap();
 
     const handlePathClick = useCallback(
         (pathId: string) => {
@@ -118,6 +118,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
                 selectedPixelIds: state.selectedPixelIds,
                 togglePixelSelection,
                 getPixelColor,
+                updatePixelColor,
                 isLoading: state.isLoading,
                 error: state.error,
                 initializeMapPaths,

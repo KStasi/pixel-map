@@ -12,7 +12,7 @@ interface AccountPanelProps {
 }
 
 export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
-    const { selectedPixelIds, togglePixelSelection } = useMapContext();
+    const mapContext = useMapContext();
     const { prices, isLoading: isLoadingPrices } = usePixelPrices();
     const { getBalance } = useBalance();
     const [balance, setBalance] = useState(0);
@@ -24,16 +24,20 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
     }, [isOpen, getBalance]);
 
     const selectedPixels = useMemo(() => {
-        return Array.from(selectedPixelIds).map((id) => ({
+        return Array.from(mapContext?.selectedPixelIds).map((id) => ({
             id,
             pathId: `path-${id}`,
             price: prices.find((p) => p.id === id)?.price ?? 0,
         }));
-    }, [selectedPixelIds, prices]);
+    }, [mapContext?.selectedPixelIds, prices]);
 
     const total = useMemo(() => {
         return selectedPixels.reduce((sum, pixel) => sum + pixel.price, 0).toFixed(2);
     }, [selectedPixels]);
+
+    const handleColorChange = (pathId: string, newColor: string) => {
+        mapContext?.updatePixelColor(pathId, newColor);
+    };
 
     if (!isOpen) return null;
 
@@ -89,8 +93,9 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                                     key={pixel.pathId}
                                     coordinates={`Id: ${pixel.id}`}
                                     price={pixel.price}
-                                    color="bg-yellow-500"
-                                    onDelete={() => togglePixelSelection(pixel.pathId)}
+                                    color={mapContext?.getPixelColor(pixel.pathId) || "#FFD700"}
+                                    onDelete={() => mapContext?.togglePixelSelection(pixel.pathId)}
+                                    onColorChange={(newColor) => handleColorChange(pixel.pathId, newColor)}
                                 />
                             ))}
                         </div>

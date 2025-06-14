@@ -16,6 +16,7 @@ export interface MapContextType {
     selectedPixelIds: Set<number>;
     togglePixelSelection: (pathId: string) => void;
     getPixelColor: (pathId: string) => string;
+    updatePixelColor: (pathId: string, color: string) => void;
     isLoading: boolean;
     error: string | null;
     initializeMapPaths: () => void;

@@ -17,16 +17,42 @@ export function useMap() {
                 color: Math.floor(Math.random() * 0xffffff),
             }));
 
-            setState((prev) => ({
-                ...prev,
-                pixels: new Map(mockPixels.map((p) => [p.id, p])),
-                error: null,
-            }));
+            setState((prev) => {
+                const newPixels = new Map(mockPixels.map((p) => [p.id, p]));
+
+                // Preserve colors for selected pixels
+                prev.selectedPixelIds.forEach((id) => {
+                    const existingPixel = prev.pixels.get(id);
+                    if (existingPixel) {
+                        newPixels.set(id, existingPixel);
+                    }
+                });
+
+                return {
+                    ...prev,
+                    pixels: newPixels,
+                    error: null,
+                };
+            });
         } catch (err) {
             setState((prev) => ({ ...prev, error: "Failed to fetch map data" }));
         } finally {
             setState((prev) => ({ ...prev, isLoading: false }));
         }
+    }, []);
+
+    const updatePixelColor = useCallback((pathId: string, color: string) => {
+        const pixelId = parseInt(pathId.replace("path-", ""));
+        const colorNumber = parseInt(color.replace("#", ""), 16);
+
+        setState((prev) => {
+            const newPixels = new Map(prev.pixels);
+            const pixel = newPixels.get(pixelId);
+            if (pixel) {
+                newPixels.set(pixelId, { ...pixel, color: colorNumber });
+            }
+            return { ...prev, pixels: newPixels };
+        });
     }, []);
 
     const togglePixelSelection = useCallback((pathId: string) => {
@@ -66,5 +92,6 @@ export function useMap() {
         togglePixelSelection,
         isPixelSelected,
         getPixelColor,
+        updatePixelColor,
     };
 }
