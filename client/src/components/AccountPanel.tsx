@@ -3,19 +3,25 @@ import { Button } from "./ui/button";
 import { CartItem } from "./CartItem";
 import { useMap } from "../context/MapContext";
 import { usePixelPrices } from "../hooks/usePixelPrices";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import { useBalance } from "../hooks/useBalance";
 
 interface AccountPanelProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-// Mock data
-const mockBalance = 1000;
-
 export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
     const { selectedPaths, handlePathClick } = useMap();
     const { prices, isLoading: isLoadingPrices } = usePixelPrices();
+    const { getBalance } = useBalance();
+    const [balance, setBalance] = useState(0);
+
+    useEffect(() => {
+        if (isOpen) {
+            getBalance().then(setBalance);
+        }
+    }, [isOpen, getBalance]);
 
     const pathsWithPrices = useMemo(() => {
         return selectedPaths.map((path) => {
@@ -47,7 +53,7 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                 {/* Balance Section */}
                 <div className="mb-8">
                     <div className="text-sm text-gray-600 mb-2">Balance</div>
-                    <div className="text-3xl font-bold mb-4 text-gray-900">${mockBalance}</div>
+                    <div className="text-3xl font-bold mb-4 text-gray-900">${balance}</div>
                     <div className="flex gap-2">
                         <a href="https://apps.yellow.com/" target="_blank" rel="noopener noreferrer" className="flex-1">
                             <Button variant="outline" className="w-full text-white hover:text-white">
