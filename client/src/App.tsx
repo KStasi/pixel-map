@@ -193,11 +193,6 @@ function App() {
                 <Map />
             </div>
 
-            {/* Background grid pattern - Lower z-index */}
-            <div className="fixed inset-0 bg-grid-pattern opacity-10 z-0"></div>
-            {/* Decorative glow effects - Lower z-index */}
-            <div className="fixed top-[-50%] left-[-20%] w-[140%] h-[140%] bg-gradient-radial from-viper-green/5 to-transparent opacity-30 blur-3xl z-0"></div>
-            <div className="fixed bottom-[-50%] right-[-20%] w-[140%] h-[140%] bg-gradient-radial from-viper-purple/5 to-transparent opacity-30 blur-3xl z-0"></div>
             {/* Main content - Add z-10 to be above background but below header */}
             <div className="flex-1 flex flex-col justify-center items-center p-4 relative z-10">
                 {/* Only show the app header in game view */}
@@ -205,7 +200,7 @@ function App() {
                     <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
                         <div className="text-center backdrop-blur-sm bg-viper-charcoal/20 rounded-lg px-6 py-3 border border-viper-green/20">
                             <h1 className="text-2xl sm:text-3xl font-bold font-pixel leading-none tracking-wider">
-                                VIPER DUEL
+                                MapMapMap
                             </h1>
                         </div>
                     </div>

@@ -108,7 +108,7 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                         <span className="text-lg font-semibold text-gray-900">Total:</span>
                         <span className="text-xl font-bold text-gray-900">${total}</span>
                     </div>
-                    <Button className="w-full">Paint Selected</Button>
+                    <Button className="w-full text-black">Paint Selected</Button>
                 </div>
             </div>
         </div>
