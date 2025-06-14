@@ -54,6 +54,26 @@ export function MapProvider({ children }: { children: ReactNode }) {
         });
     }, []);
 
+    const handleOnMouseEnter = useCallback((pathId: string) => {
+        const svgDoc = svgRef.current?.contentDocument;
+        if (!svgDoc) return;
+
+        const path = svgDoc.getElementById(pathId);
+        if (!path) return;
+        path.style.fill = "red";
+    }, []);
+    const handleOnMouseLeave = useCallback((pathId: string) => {
+        const svgDoc = svgRef.current?.contentDocument;
+        if (!svgDoc) return;
+
+        const path = svgDoc.getElementById(pathId);
+        if (!path) return;
+        console.log(path.style.fill);
+        if (path.style.fill !== "rgb(255, 215, 0)") {
+            path.style.fill = "#2AFF6B"; // Back to green when not hovering
+        }
+    }, []);
+
     const initializeMapPaths = useCallback(() => {
         const svgDoc = svgRef.current?.contentDocument;
         if (!svgDoc) return;
@@ -73,6 +93,16 @@ export function MapProvider({ children }: { children: ReactNode }) {
             path.style.pointerEvents = "auto";
             path.style.cursor = "pointer";
             path.style.fill = "#2AFF6B"; // Set initial color to green
+
+            // Add hover effect using addEventListener
+            path.onmouseenter = (e) => {
+                e.preventDefault();
+                handleOnMouseEnter(pathId);
+            };
+            path.onmouseleave = (e) => {
+                e.preventDefault();
+                handleOnMouseLeave(pathId);
+            };
         });
     }, [handlePathClick]);
 

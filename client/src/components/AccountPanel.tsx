@@ -25,6 +25,10 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
         });
     }, [selectedPaths, prices]);
 
+    const total = useMemo(() => {
+        return pathsWithPrices.reduce((sum, path) => sum + path.price, 0).toFixed(2);
+    }, [pathsWithPrices]);
+
     if (!isOpen) return null;
 
     return (
@@ -71,6 +75,20 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                                 onDelete={() => handlePathClick(path.id)}
                             />
                         ))}
+                    </div>
+
+                    {/* Total and Paint Button */}
+                    <div className="mt-6 pt-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-lg font-semibold">Total:</span>
+                            <span className="text-xl font-bold">${total}</span>
+                        </div>
+                        <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={pathsWithPrices.length === 0}
+                        >
+                            Paint it
+                        </Button>
                     </div>
                 </div>
             </div>

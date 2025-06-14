@@ -32,13 +32,19 @@ export function Map() {
     }, [initializeMapPaths]);
 
     return (
-        <div className="h-full min-w-[1450px] min-h-[800px] flex items-center justify-center">
+        <div className=" min-w-[1450px] min-h-[800px] flex items-center justify-center bg-cover bg-center">
             <object
                 ref={svgRef}
                 data={map}
                 type="image/svg+xml"
                 className="w-full h-full"
-                style={{ display: "block", margin: "auto", pointerEvents: "auto" }}
+                style={{
+                    display: "block",
+                    margin: "0",
+                    pointerEvents: "auto",
+                    backgroundColor: "black",
+                    color: "black",
+                }}
             />
         </div>
     );
