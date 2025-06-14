@@ -10,6 +10,7 @@ import { addAppSessionSignature, createAppSessionWithSignatures, getPendingAppSe
 import logger from './utils/logger.js';
 import { db }  from './config/db.js';
 import { pixelDataTable } from './db/schema.js';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 
 // Create WebSocket server
 const wss = createWebSocketServer();
@@ -24,11 +25,13 @@ let onlineUsersCount = 0;
 
 async function prepareDatabase() {
   logger.system('Preparing database...');
-  await migrate(db);
+  await migrate(db, {
+    migrationsFolder: 'drizzle',
+  });
   // Ensure pixel data table exists and has enough entries
   for (const id of Array(3300).keys()) {
     await db.insert(pixelDataTable).values({
-      id: pixelId,
+      id,
     }).onConflictDoNothing();
   }
 }
@@ -362,20 +365,6 @@ async function handleGetMap(ws, { db, sendError }) {
   } catch (error) {
     logger.error('Error fetching prices:', error);
     sendError(ws, 'FETCH_PRICES_ERROR', 'Failed to fetch prices');
-  }
-}
-
-async function handleBuyPixels(ws, payload, { db, sendError }) {
-  const { pixelsToBuy, signature } = payload || {};
-
-  if (!pixelsToBuy || !Array.isArray(pixelsToBuy) || pixelsToBuy.length === 0) {
-    return sendError(ws, 'NO_PIXELS', 'No pixels to buy.');
-  }
-  if (!eoa || typeof eoa !== 'string') {
-    return sendError(ws, 'INVALID_EOA', 'Invalid EOA.');
-  }
-  if (!signature || typeof signature !== 'string') {
-    return sendError(ws, 'INVALID_SIGNATURE', 'Invalid signature.');
   }
 }
 // Initialize Nitrolite client and channel when server starts

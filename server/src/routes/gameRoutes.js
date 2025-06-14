@@ -114,6 +114,8 @@ export async function handleStartGame(ws, payload, { roomManager, connections, s
   );
 }
 
+
+
 /**
  * Game loop intervals for each room
  */
@@ -132,15 +134,6 @@ async function handleGameOverAppSession(roomId, gameState, roomManager) {
     // First check if the room has an appId directly
     if (room && room.appId) {
       logger.nitro(`Closing app session with ID ${room.appId} for room ${roomId}`);
-      
-      // Determine winner based on game result
-      let winnerId = null;
-      if (gameState.winner === 'player1') {
-        winnerId = 'A'; // player1 is player A (host)
-      } else if (gameState.winner === 'player2') {
-        winnerId = 'B'; // player2 is player B (guest)
-      }
-      // null winner means tie
       
       // Calculate allocations based on winner and room bet amount
       const betAmount = room.betAmount || 0;
