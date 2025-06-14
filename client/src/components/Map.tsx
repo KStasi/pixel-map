@@ -1,34 +1,35 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import map from "/map-transparent.svg";
+import { useMap } from "../context/MapContext";
 
 export function Map() {
-    const svgRef = useRef<HTMLObjectElement>(null);
+    const { svgRef, initializeMapPaths } = useMap();
 
     useEffect(() => {
-        const handleSvgLoad = () => {
-            const svgDoc = svgRef.current?.contentDocument;
-            if (!svgDoc) return;
+        const objectElement = svgRef.current;
+        if (!objectElement) return;
 
-            const paths = svgDoc.querySelectorAll("path");
-            paths.forEach((path) => {
-                path.addEventListener("click", (e) => {
-                    const pathId = (e.target as SVGPathElement).id;
-                    console.log("Clicked path ID:", pathId);
-                });
-            });
+        const handleLoad = () => {
+            console.log("SVG loaded in Map component");
+            // Small delay to ensure SVG is fully loaded and accessible
+            setTimeout(() => {
+                initializeMapPaths();
+            }, 100);
         };
 
-        const objectElement = svgRef.current;
-        if (objectElement) {
-            objectElement.addEventListener("load", handleSvgLoad);
+        // If SVG is already loaded, initialize immediately
+        if (objectElement.contentDocument) {
+            console.log("SVG already loaded in Map component, initializing immediately");
+            handleLoad();
         }
 
+        // Add load listener for when SVG loads
+        objectElement.addEventListener("load", handleLoad);
+
         return () => {
-            if (objectElement) {
-                objectElement.removeEventListener("load", handleSvgLoad);
-            }
+            objectElement.removeEventListener("load", handleLoad);
         };
-    }, []);
+    }, [initializeMapPaths]);
 
     return (
         <div className="h-full min-w-[1450px] min-h-[800px] flex items-center justify-center">
@@ -37,7 +38,7 @@ export function Map() {
                 data={map}
                 type="image/svg+xml"
                 className="w-full h-full"
-                style={{ display: "block", margin: "auto" }}
+                style={{ display: "block", margin: "auto", pointerEvents: "auto" }}
             />
         </div>
     );

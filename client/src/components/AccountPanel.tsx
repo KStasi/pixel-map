@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { Button } from "./ui/button";
 import { CartItem } from "./CartItem";
+import { useMap } from "../context/MapContext";
 
 interface AccountPanelProps {
     isOpen: boolean;
@@ -9,13 +10,10 @@ interface AccountPanelProps {
 
 // Mock data
 const mockBalance = 1000;
-const mockCartItems = [
-    { id: 1, coordinates: "-101:222", price: 50, color: "bg-blue-500" },
-    { id: 2, coordinates: "45:67", price: 75, color: "bg-green-500" },
-    { id: 3, coordinates: "123:-456", price: 100, color: "bg-purple-500" },
-];
 
 export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
+    const { selectedPaths, handlePathClick } = useMap();
+
     if (!isOpen) return null;
 
     return (
@@ -53,13 +51,13 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                 <div>
                     <h3 className="text-lg font-semibold mb-4 text-gray-900">Cart</h3>
                     <div className="space-y-3">
-                        {mockCartItems.map((item) => (
+                        {selectedPaths.map((path) => (
                             <CartItem
-                                key={item.id}
-                                coordinates={item.coordinates}
-                                price={item.price}
-                                color={item.color}
-                                onDelete={() => console.log("Delete item:", item.id)}
+                                key={path.id}
+                                coordinates={path.coordinates}
+                                price={50} // You might want to make this dynamic based on some logic
+                                color={path.color}
+                                onDelete={() => handlePathClick(path.id)}
                             />
                         ))}
                     </div>
