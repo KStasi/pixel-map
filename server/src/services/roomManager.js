@@ -105,9 +105,11 @@ export function createRoomManager() {
     if (!room.players.host) {
       room.players.host = formattedEoa;
       role = 'host';
-    } else if (!room.players.guest) {
-      room.players.guest = formattedEoa;
-      role = 'guest';
+    } else {
+      return {
+        success: false,
+        error: 'Room is full'
+      };
     }
 
     // Store connection and map address to room

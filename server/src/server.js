@@ -8,6 +8,8 @@ import { handleJoinRoom, handleGetAvailableRooms } from './routes/roomRoutes.js'
 import { handleStartGame, handleDirectionChange } from './routes/gameRoutes.js';
 import { addAppSessionSignature, createAppSessionWithSignatures, getPendingAppSessionMessage } from './services/index.js';
 import logger from './utils/logger.js';
+import { db }  from './config/db.js';
+import { pixelDataTable } from './db/schema.js';
 
 // Create WebSocket server
 const wss = createWebSocketServer();
@@ -19,6 +21,17 @@ const connections = new Map();
 
 // Track online users count
 let onlineUsersCount = 0;
+
+async function prepareDatabase() {
+  logger.system('Preparing database...');
+  await migrate(db);
+  // Ensure pixel data table exists and has enough entries
+  for (const id of Array(3300).keys()) {
+    await db.insert(pixelDataTable).values({
+      id: pixelId,
+    }).onConflictDoNothing();
+  }
+}
 
 /**
  * Handles app session signature submission
@@ -207,6 +220,7 @@ const broadcastOnlineUsersCount = () => {
 const context = {
   roomManager,
   connections,
+  db,
   sendError: (ws, code, msg) => sendError(ws, code, msg)
 };
 
@@ -247,6 +261,16 @@ wss.on('connection', (ws) => {
         case 'appSession:startGame':
           await handleAppSessionStartGame(ws, data.payload, context);
           break;
+        case 'getPrices':
+          await handleGetPrices(ws, context);
+          break;
+        case 'getMap':
+          await handleGetMap(ws, context);
+          break;
+        case 'acceptBuy':
+        // Import the buyPixels handler dynamically to avoid circular dependencies
+          await handleBuyPixels(ws, data.payload, context);
+          break;
         default:
           sendError(ws, 'INVALID_MESSAGE_TYPE', 'Invalid message type');
       }
@@ -281,6 +305,79 @@ wss.on('connection', (ws) => {
   });
 });
 
+async function calculatePixelPrice(pixelData) {
+  logger.info(
+    `🔍 Calculating price for pixel ID: ${pixelData.id} with color ${pixelData.color}`
+  );
+  const { last_bought, last_price } = (
+    await db
+      .select({
+        last_bought: pixelDataTable.last_bought,
+        last_price: pixelDataTable.last_price,
+      })
+      .from(pixelDataTable)
+      .where(eq(pixelDataTable.id, pixelData.id))
+      .limit(1)
+  )[0];
+  const currentTime = Date.now();
+  if (!last_bought || !last_price) {
+    logger.info(
+      `💰 No previous price found, using default price: ${defaultPixelPrice}`
+    );
+    return defaultPixelPrice; // Default price if no previous data exists
+  }
+  const timeElapsed = currentTime - new Date(last_bought).getTime();
+  const priceDecayFactor = Math.max(0, 1 - timeElapsed / 60000); // Decay over minutes
+  const newPrice = defaultPixelPrice > last_price * 2n - last_price * BigInt(priceDecayFactor) ? defaultPixelPrice : last_price * 2n - last_price * BigInt(priceDecayFactor);
+  logger.info(`💰 Calculated price: ${newPrice}`);
+  return newPrice;
+}
+
+async function handleGetPrices(ws, { db, sendError }) {
+  try {
+    const prices = await db.select().from(pixelDataTable);
+    ws.send(JSON.stringify({
+      type: 'prices',
+      data: await Promise.all(prices.map(async (pixelData) => {
+        const price = await calculatePixelPrice(pixelData);
+        return {
+          id: pixelData.id,
+          price
+        };
+      }))
+    }));
+  } catch (error) {
+    logger.error('Error fetching prices:', error);
+    sendError(ws, 'FETCH_PRICES_ERROR', 'Failed to fetch prices');
+  }
+}
+
+async function handleGetMap(ws, { db, sendError }) {
+  try {
+    const pixels = await db.select().from(pixelDataTable);
+    ws.send(JSON.stringify({
+      type: 'prices',
+      data: pixels
+    }));
+  } catch (error) {
+    logger.error('Error fetching prices:', error);
+    sendError(ws, 'FETCH_PRICES_ERROR', 'Failed to fetch prices');
+  }
+}
+
+async function handleBuyPixels(ws, payload, { db, sendError }) {
+  const { pixelsToBuy, signature } = payload || {};
+
+  if (!pixelsToBuy || !Array.isArray(pixelsToBuy) || pixelsToBuy.length === 0) {
+    return sendError(ws, 'NO_PIXELS', 'No pixels to buy.');
+  }
+  if (!eoa || typeof eoa !== 'string') {
+    return sendError(ws, 'INVALID_EOA', 'Invalid EOA.');
+  }
+  if (!signature || typeof signature !== 'string') {
+    return sendError(ws, 'INVALID_SIGNATURE', 'Invalid signature.');
+  }
+}
 // Initialize Nitrolite client and channel when server starts
 async function initializeNitroliteServices() {
   try {
@@ -305,6 +402,12 @@ async function initializeNitroliteServices() {
 // Start server
 const port = process.env.PORT || 8080;
 logger.system(`WebSocket server starting on port ${port}`);
+
+prepareDatabase().then(() => {
+  logger.system('Database migration complete');
+}).catch(error => {
+  logger.error('Database migration failed:', error);
+});
 
 // Initialize Nitrolite client and channel
 initializeNitroliteServices().then(() => {

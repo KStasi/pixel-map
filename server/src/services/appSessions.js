@@ -21,17 +21,15 @@ const pendingAppSessions = new Map();
  * Generate app session message for multi-signature collection
  * @param {string} roomId - Room ID
  * @param {string} participantA - First player's address
- * @param {string} participantB - Second player's address
  * @param {number} betAmount - Bet amount for each player (0, 0.01, 0.1, 1, 2)
  * @returns {Promise<Object>} The unsigned app session message and app definition
  */
-export async function generateAppSessionMessage(roomId, participantA, participantB, betAmount = 0) {
+export async function generateAppSessionMessage(roomId, participantA, betAmount = 0) {
   try {
     // Format addresses to proper checksum format
     const formattedParticipantA = ethers.getAddress(participantA);
-    const formattedParticipantB = ethers.getAddress(participantB);
     
-    logger.nitro(`Generating app session message for room ${roomId} with participants A: ${formattedParticipantA}, B: ${formattedParticipantB}`);
+    logger.nitro(`Generating app session message for room ${roomId} with participants A: ${formattedParticipantA}`);
     
     // Check if we already have a pending session (to ensure consistency)
     let pendingSession = pendingAppSessions.get(roomId);
@@ -41,7 +39,7 @@ export async function generateAppSessionMessage(roomId, participantA, participan
       return {
         appSessionData: pendingSession.appSessionData,
         appDefinition: pendingSession.appDefinition,
-        participants: [pendingSession.participantA, pendingSession.participantB, pendingSession.serverAddress],
+        participants: [pendingSession.participantA, pendingSession.serverAddress],
         requestToSign: pendingSession.requestToSign
       };
     }
@@ -59,8 +57,8 @@ export async function generateAppSessionMessage(roomId, participantA, participan
     const nonce = Date.now();
     const appDefinition = {
       protocol: "viper_duel_nitrolite_v0",
-      participants: [formattedParticipantA, formattedParticipantB, serverAddress],
-      weights: [0, 0, 100],
+      participants: [formattedParticipantA, serverAddress],
+      weights: [0, 100],
       quorum: 100,
       challenge: 0,
       nonce: nonce,
@@ -71,11 +69,6 @@ export async function generateAppSessionMessage(roomId, participantA, participan
       allocations: [
         {
           participant: formattedParticipantA,
-          asset: 'usdc',
-          amount: betAmount.toString(),
-        },
-        {
-          participant: formattedParticipantB,
           asset: 'usdc',
           amount: betAmount.toString(),
         },
@@ -102,7 +95,6 @@ export async function generateAppSessionMessage(roomId, participantA, participan
       appSessionData,
       appDefinition,
       participantA: formattedParticipantA,
-      participantB: formattedParticipantB,
       serverAddress,
       betAmount,
       signatures: new Map(),
@@ -116,7 +108,7 @@ export async function generateAppSessionMessage(roomId, participantA, participan
     return {
       appSessionData,
       appDefinition,
-      participants: [formattedParticipantA, formattedParticipantB, serverAddress],
+      participants: [formattedParticipantA, serverAddress],
       requestToSign: requestToSign
     };
     
@@ -144,7 +136,7 @@ export async function addAppSessionSignature(roomId, participantAddress, signatu
     }
     
     // Verify the participant is part of this session
-    const isValidParticipant = [pendingSession.participantA, pendingSession.participantB].includes(formattedParticipantAddress);
+    const isValidParticipant = [pendingSession.participantA].includes(formattedParticipantAddress);
     if (!isValidParticipant) {
       throw new Error(`Invalid participant ${formattedParticipantAddress} for room ${roomId}`);
     }
@@ -156,8 +148,7 @@ export async function addAppSessionSignature(roomId, participantAddress, signatu
     logger.data(`Signature details:`, { participantAddress: formattedParticipantAddress, signature: signature.substring(0, 10) + '...', signatureLength: signature.length });
     
     // Check if we have all participant signatures (not including server)
-    const allParticipantsSigned = pendingSession.signatures.has(pendingSession.participantA) && 
-                                  pendingSession.signatures.has(pendingSession.participantB);
+    const allParticipantsSigned = pendingSession.signatures.has(pendingSession.participantA);
     
     return allParticipantsSigned;
     
@@ -180,8 +171,7 @@ export async function createAppSessionWithSignatures(roomId) {
     }
     
     // Verify all signatures are collected
-    const allSigned = pendingSession.signatures.has(pendingSession.participantA) && 
-                      pendingSession.signatures.has(pendingSession.participantB);
+    const allSigned = pendingSession.signatures.has(pendingSession.participantA);
     
     if (!allSigned) {
       throw new Error(`Not all signatures collected for room ${roomId}`);
@@ -197,13 +187,10 @@ export async function createAppSessionWithSignatures(roomId) {
     
     // Collect all signatures including server signature
     const participantASignature = pendingSession.signatures.get(pendingSession.participantA);
-    const participantBSignature = pendingSession.signatures.get(pendingSession.participantB);
     
     logger.data(`Participant signatures for room ${roomId}:`, {
       participantA: pendingSession.participantA,
-      participantB: pendingSession.participantB,
       participantASignature,
-      participantBSignature,
       allStoredSignatures: Array.from(pendingSession.signatures.entries())
     });
     
@@ -211,16 +198,13 @@ export async function createAppSessionWithSignatures(roomId) {
     if (!participantASignature) {
       throw new Error(`Missing signature from participant A: ${pendingSession.participantA}`);
     }
-    if (!participantBSignature) {
-      throw new Error(`Missing signature from participant B: ${pendingSession.participantB}`);
-    }
     
     // Don't create a new server signature - use the existing signed message structure
     // but replace the single server signature with all collected signatures
     
     // Create a properly formatted message with all signatures
     // The signatures should be in the same order as participants: [participantA, participantB, server]
-    const allSignatures = [participantASignature, participantBSignature];
+    const allSignatures = [participantASignature];
     
     // Now let the server sign the same request structure as the clients
     const sign = rpcClient.signMessage.bind(rpcClient);
@@ -305,7 +289,6 @@ export async function createAppSessionWithSignatures(roomId) {
     roomAppSessions.set(roomId, {
       appId,
       participantA: pendingSession.participantA,
-      participantB: pendingSession.participantB,
       serverAddress: pendingSession.serverAddress,
       tokenAddress: process.env.USDC_TOKEN_ADDRESS,
       betAmount: pendingSession.betAmount,
@@ -328,11 +311,10 @@ export async function createAppSessionWithSignatures(roomId) {
  * Create an app session for a game room (original function for backward compatibility)
  * @param {string} roomId - Room ID
  * @param {string} participantA - First player's address
- * @param {string} participantB - Second player's address
  * @param {number} betAmount - Bet amount for each player (0, 0.01, 0.1, 1, 2)
  * @returns {Promise<string>} The app session ID
  */
-export async function createAppSession(roomId, participantA, participantB, betAmount = 0) {
+export async function createAppSession(roomId, participantA, betAmount = 0) {
   try {
     logger.nitro(`Creating app session for room ${roomId}`);
     
@@ -357,8 +339,8 @@ export async function createAppSession(roomId, participantA, participantB, betAm
     // Create app definition
     const appDefinition = {
       protocol: "app_aura_nitrolite_v0",
-      participants: [participantA, participantB, serverAddress],
-      weights: [0, 0, 100],
+      participants: [participantA, serverAddress],
+      weights: [0, 100],
       quorum: 100,
       challenge: 0,
       nonce: Date.now(),
@@ -376,11 +358,6 @@ export async function createAppSession(roomId, participantA, participantB, betAm
           allocations: [
             {
               participant: participantA,
-              asset: 'usdc',
-              amount: betAmount.toString(),
-            },
-            {
-              participant: participantB,
               asset: 'usdc',
               amount: betAmount.toString(),
             },
@@ -459,7 +436,6 @@ export async function createAppSession(roomId, participantA, participantB, betAm
     roomAppSessions.set(roomId, {
       appId,
       participantA,
-      participantB,
       serverAddress,
       tokenAddress,
       betAmount,
@@ -490,7 +466,7 @@ export async function closeAppSessionWithWinner(roomId, winnerId = null) {
       return false;
     }
 
-    const { participantA, participantB, betAmount = 0 } = appSession;
+    const { participantA, betAmount = 0 } = appSession;
     
     // Calculate allocations based on winner and bet amount
     // Need to ensure exact redistribution of what was initially allocated
@@ -498,19 +474,8 @@ export async function closeAppSessionWithWinner(roomId, winnerId = null) {
     const totalPot = (betAmount * 2).toString();
     
     let allocations;
-    if (winnerId === 'A') {
-      // Player A wins - gets all the funds
-      allocations = [totalPot, '0', '0']; // A gets both initial allocations
-      logger.nitro(`Player A (${participantA}) wins room ${roomId} - taking full allocation of ${totalPot}`);
-    } else if (winnerId === 'B') {
-      // Player B wins - gets all the funds
-      allocations = ['0', totalPot, '0']; // B gets both initial allocations
-      logger.nitro(`Player B (${participantB}) wins room ${roomId} - taking full allocation of ${totalPot}`);
-    } else {
-      // Tie or no winner - split evenly (return original amounts)
-      allocations = [betAmountStr, betAmountStr, '0'];
-      logger.nitro(`Tie in room ${roomId} - splitting allocation evenly: ${betAmountStr} each`);
-    }
+    // Tie or no winner - split evenly (return original amounts)
+    allocations = ['0', betAmountStr];
     
     logger.data(`Allocation calculation for room ${roomId}:`, {
       betAmount,
@@ -532,7 +497,7 @@ export async function closeAppSessionWithWinner(roomId, winnerId = null) {
 /**
  * Close an app session for a game room
  * @param {string} roomId - Room ID
- * @param {Array<number>} [allocations=[0,0,0]] - Final allocations
+ * @param {Array<number>} [allocations=[0,0]] - Final allocations
  * @returns {Promise<boolean>} Success status
  */
 export async function closeAppSession(roomId, allocations) {
@@ -560,10 +525,10 @@ export async function closeAppSession(roomId, allocations) {
     }
 
     // Extract participant addresses from the stored app session
-    const { participantA, participantB, serverAddress } = appSession;
+    const { participantA, serverAddress } = appSession;
 
     // Check if we have all the required participants
-    if (!participantA || !participantB || !serverAddress) {
+    if (!participantA || !serverAddress) {
       throw new Error('Missing participant information in app session');
     }
 
@@ -574,24 +539,18 @@ export async function closeAppSession(roomId, allocations) {
         amount: allocations[0].toString(),
       },
       {
-        participant: participantB,
-        asset: 'usdc',
-        amount: allocations[1].toString(),
-      },
-      {
         participant: serverAddress,
         asset: 'usdc',
-        amount: allocations[2].toString(),
+        amount: allocations[1].toString(),
       },
     ];
     
     // Log the allocations for debugging
-    const totalAmount = parseFloat(allocations[0]) + parseFloat(allocations[1]) + parseFloat(allocations[2]);
+    const totalAmount = parseFloat(allocations[0]) + parseFloat(allocations[1]);
     const expectedTotal = (appSession.betAmount || 0) * 2;
     logger.data(`Final allocations for room ${roomId}:`, {
       participantA: `${participantA} = ${allocations[0]}`,
-      participantB: `${participantB} = ${allocations[1]}`,
-      serverAddress: `${serverAddress} = ${allocations[2]}`,
+      serverAddress: `${serverAddress} = ${allocations[1]}`,
       totalAmount: totalAmount.toString(),
       expectedTotal: expectedTotal.toString()
     });
@@ -702,7 +661,7 @@ export function getPendingAppSessionMessage(roomId) {
   return {
     appSessionData: pendingSession.appSessionData,
     appDefinition: pendingSession.appDefinition,
-    participants: [pendingSession.participantA, pendingSession.participantB, pendingSession.serverAddress],
+    participants: [pendingSession.participantA, pendingSession.serverAddress],
     requestToSign: pendingSession.requestToSign
   };
 }
