@@ -29,9 +29,9 @@ async function prepareDatabase() {
     migrationsFolder: 'drizzle',
   });
   // Ensure pixel data table exists and has enough entries
-  for (const id of Array(3300).keys()) {
+  for (const id of Array(3030).keys()) {
     await db.insert(pixelDataTable).values({
-      id,
+      id: id + 1, // IDs are 1-based in the table
     }).onConflictDoNothing();
   }
 }
