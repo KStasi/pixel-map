@@ -4,10 +4,13 @@
 
 import { createWebSocketServer, sendError, startPingInterval } from './config/websocket.js';
 import { initializeRPCClient, createRoomManager } from './services/index.js';
-import { handleJoinRoom, handleGetAvailableRooms } from './routes/roomRoutes.js';
+import { handleJoinRoom, handleGetAvailableRooms, handleBuyPixels } from './routes/roomRoutes.js';
 import { handleStartGame, handleDirectionChange } from './routes/gameRoutes.js';
 import { addAppSessionSignature, createAppSessionWithSignatures, getPendingAppSessionMessage } from './services/index.js';
 import logger from './utils/logger.js';
+import { db }  from './config/db.js';
+import { pixelDataTable } from './db/schema.js';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 
 // Create WebSocket server
 const wss = createWebSocketServer();
@@ -19,6 +22,19 @@ const connections = new Map();
 
 // Track online users count
 let onlineUsersCount = 0;
+
+async function prepareDatabase() {
+  logger.system('Preparing database...');
+  await migrate(db, {
+    migrationsFolder: 'drizzle',
+  });
+  // Ensure pixel data table exists and has enough entries
+  for (const id of Array(3030).keys()) {
+    await db.insert(pixelDataTable).values({
+      id: id + 1, // IDs are 1-based in the table
+    }).onConflictDoNothing();
+  }
+}
 
 /**
  * Handles app session signature submission
@@ -207,6 +223,7 @@ const broadcastOnlineUsersCount = () => {
 const context = {
   roomManager,
   connections,
+  db,
   sendError: (ws, code, msg) => sendError(ws, code, msg)
 };
 
@@ -229,23 +246,21 @@ wss.on('connection', (ws) => {
     // Process message based on type
     try {
       switch (data.type) {
-        case 'joinRoom':
-          await handleJoinRoom(ws, data.payload, context);
-          break;
-        case 'startGame':
-          await handleStartGame(ws, data.payload, context);
-          break;
-        case 'changeDirection':
-          await handleDirectionChange(ws, data.payload, context);
-          break;
-        case 'getAvailableRooms':
-          await handleGetAvailableRooms(ws, context);
-          break;
         case 'appSession:signature':
           await handleAppSessionSignature(ws, data.payload, context);
           break;
         case 'appSession:startGame':
           await handleAppSessionStartGame(ws, data.payload, context);
+          break;
+        case 'pixel:prices':
+          await handleGetPrices(ws, context);
+          break;
+        case 'map:state':
+          await handleGetMap(ws, context);
+          break;
+        case 'appSession:buyPixels':
+        // Import the buyPixels handler dynamically to avoid circular dependencies
+          await handleBuyPixels(ws, data.payload, context);
           break;
         default:
           sendError(ws, 'INVALID_MESSAGE_TYPE', 'Invalid message type');
@@ -281,6 +296,65 @@ wss.on('connection', (ws) => {
   });
 });
 
+async function calculatePixelPrice(pixelData) {
+  logger.info(
+    `🔍 Calculating price for pixel ID: ${pixelData.id} with color ${pixelData.color}`
+  );
+  const { last_bought, last_price } = (
+    await db
+      .select({
+        last_bought: pixelDataTable.last_bought,
+        last_price: pixelDataTable.last_price,
+      })
+      .from(pixelDataTable)
+      .where(eq(pixelDataTable.id, pixelData.id))
+      .limit(1)
+  )[0];
+  const currentTime = Date.now();
+  if (!last_bought || !last_price) {
+    logger.info(
+      `💰 No previous price found, using default price: ${defaultPixelPrice}`
+    );
+    return defaultPixelPrice; // Default price if no previous data exists
+  }
+  const timeElapsed = currentTime - new Date(last_bought).getTime();
+  const priceDecayFactor = Math.max(0, 1 - timeElapsed / 60000); // Decay over minutes
+  const newPrice = defaultPixelPrice > last_price * 2n - last_price * BigInt(priceDecayFactor) ? defaultPixelPrice : last_price * 2n - last_price * BigInt(priceDecayFactor);
+  logger.info(`💰 Calculated price: ${newPrice}`);
+  return newPrice;
+}
+
+async function handleGetPrices(ws, { db, sendError }) {
+  try {
+    const prices = await db.select().from(pixelDataTable);
+    ws.send(JSON.stringify({
+      type: 'pixel:prices',
+      payload: await Promise.all(prices.map(async (pixelData) => {
+        const price = await calculatePixelPrice(pixelData);
+        return {
+          id: pixelData.id,
+          price
+        };
+      }))
+    }));
+  } catch (error) {
+    logger.error('Error fetching prices:', error);
+    sendError(ws, 'FETCH_PRICES_ERROR', 'Failed to fetch prices');
+  }
+}
+
+async function handleGetMap(ws, { db, sendError }) {
+  try {
+    const pixels = await db.select().from(pixelDataTable);
+    ws.send(JSON.stringify({
+      type: 'map:state',
+      payload: pixels
+    }));
+  } catch (error) {
+    logger.error('Error fetching prices:', error);
+    sendError(ws, 'FETCH_PRICES_ERROR', 'Failed to fetch prices');
+  }
+}
 // Initialize Nitrolite client and channel when server starts
 async function initializeNitroliteServices() {
   try {
@@ -305,6 +379,12 @@ async function initializeNitroliteServices() {
 // Start server
 const port = process.env.PORT || 8080;
 logger.system(`WebSocket server starting on port ${port}`);
+
+prepareDatabase().then(() => {
+  logger.system('Database migration complete');
+}).catch(error => {
+  logger.error('Database migration failed:', error);
+});
 
 // Initialize Nitrolite client and channel
 initializeNitroliteServices().then(() => {

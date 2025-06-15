@@ -114,6 +114,8 @@ export async function handleStartGame(ws, payload, { roomManager, connections, s
   );
 }
 
+
+
 /**
  * Game loop intervals for each room
  */
@@ -133,36 +135,16 @@ async function handleGameOverAppSession(roomId, gameState, roomManager) {
     if (room && room.appId) {
       logger.nitro(`Closing app session with ID ${room.appId} for room ${roomId}`);
       
-      // Determine winner based on game result
-      let winnerId = null;
-      if (gameState.winner === 'player1') {
-        winnerId = 'A'; // player1 is player A (host)
-      } else if (gameState.winner === 'player2') {
-        winnerId = 'B'; // player2 is player B (guest)
-      }
-      // null winner means tie
-      
       // Calculate allocations based on winner and room bet amount
       const betAmount = room.betAmount || 0;
       const betAmountStr = betAmount.toString();
-      const totalPot = (betAmount * 2).toString();
       
       let finalAllocations;
-      if (winnerId === 'A') {
-        // Player A wins - gets all the funds
-        finalAllocations = [totalPot, '0', '0']; // A gets both initial allocations
-      } else if (winnerId === 'B') {
-        // Player B wins - gets all the funds
-        finalAllocations = ['0', totalPot, '0']; // B gets both initial allocations
-      } else {
-        // Tie or no winner - split evenly (return original amounts)
-        finalAllocations = [betAmountStr, betAmountStr, '0'];
-      }
+      finalAllocations = ['0', betAmountStr]; // A gets both initial allocations
       
       logger.data(`Game over allocation calculation for room ${roomId}:`, {
         betAmount,
         betAmountStr,
-        totalPot,
         winnerId,
         finalAllocations
       });
@@ -186,24 +168,13 @@ async function handleGameOverAppSession(roomId, gameState, roomManager) {
       // Calculate allocations based on winner and room bet amount
       const betAmount = room.betAmount || 0;
       const betAmountStr = betAmount.toString();
-      const totalPot = (betAmount * 2).toString();
       
       let finalAllocations;
-      if (winnerId === 'A') {
-        // Player A wins - gets all the funds
-        finalAllocations = [totalPot, '0', '0']; // A gets both initial allocations
-      } else if (winnerId === 'B') {
-        // Player B wins - gets all the funds
-        finalAllocations = ['0', totalPot, '0']; // B gets both initial allocations
-      } else {
-        // Tie or no winner - split evenly (return original amounts)
-        finalAllocations = [betAmountStr, betAmountStr, '0'];
-      }
+      finalAllocations = ['0', betAmountStr]; // A gets both initial allocations
       
       logger.data(`Game over allocation calculation for room ${roomId}:`, {
         betAmount,
         betAmountStr,
-        totalPot,
         winnerId,
         finalAllocations
       });
@@ -365,4 +336,20 @@ export async function handleDirectionChange(ws, payload, { roomManager, connecti
   }
 
   // Direction change processed - the automatic game loop will handle movement updates
+}
+
+export async function notifyMapUpdate(newPixels, {connections, sendError}) {
+  if (!newPixels || !Array.isArray(newPixels) || newPixels.length === 0) {
+    return sendError(null, 'INVALID_PIXELS', 'No pixels to update.');
+  }
+
+  // Broadcast the new pixel updates to all connected clients
+  for (const ws of connections.values()) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'map:update',
+        data: newPixels
+      }));
+    }
+  }
 }

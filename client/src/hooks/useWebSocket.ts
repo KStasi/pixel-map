@@ -9,7 +9,7 @@ export function useWebSocket() {
     const [lastMessage, setLastMessage] = useState<WebSocketMessages | null>(null);
 
     // WebSocket server URL (use environment variable if available)
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8090";
 
     // Initialize WebSocket connection
     useEffect(() => {
