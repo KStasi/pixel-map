@@ -4,7 +4,7 @@
 
 import { createWebSocketServer, sendError, startPingInterval } from './config/websocket.js';
 import { initializeRPCClient, createRoomManager } from './services/index.js';
-import { handleJoinRoom, handleGetAvailableRooms } from './routes/roomRoutes.js';
+import { handleJoinRoom, handleGetAvailableRooms, handleBuyPixels } from './routes/roomRoutes.js';
 import { handleStartGame, handleDirectionChange } from './routes/gameRoutes.js';
 import { addAppSessionSignature, createAppSessionWithSignatures, getPendingAppSessionMessage } from './services/index.js';
 import logger from './utils/logger.js';

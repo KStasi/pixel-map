@@ -117,7 +117,7 @@ export function createRoomManager() {
     addressToRoom.set(formattedEoa, roomId);
 
     // Check if room has both players (ready to potentially start)
-    const isRoomFull = room.players.host && room.players.guest;
+    const isRoomFull = room.players.host;
     
     // Mark as ready when both players are present, but don't auto-start the game
     if (isRoomFull && !room.isReady) {

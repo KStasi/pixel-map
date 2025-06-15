@@ -3,8 +3,10 @@
  */
 
 import { validateJoinRoomPayload } from '../utils/validators.js';
-import { formatGameState, generateAppSessionMessage } from '../services/index.js';
+import { closeAppSession, formatGameState, generateAppSessionMessage, addAppSessionSignature, createAppSession, createAppSessionWithSignatures, getPendingAppSessionMessage } from '../services/index.js';
 import logger from '../utils/logger.js';
+import { pixelDataTable, userSpendingTable } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
 
 /**
  * Handles a request to join a room
@@ -147,4 +149,80 @@ export async function handleGetAvailableRooms(ws, { roomManager }) {
     type: 'room:available',
     rooms: availableRooms
   }));
+}
+
+export async function handleBuyPixels(ws, payload, { roomManager, connections, db, sendError }) {
+  const { pixelsToBuy, signature, eoa, totalPrice } = payload || {};
+
+  console.log(`🛒 handleBuyPixels called with payload:`, payload);
+
+  // Find the player submitting the signature
+  let playerEoa = eoa;
+
+  if (!playerEoa) {
+    return sendError(ws, 'NOT_AUTHENTICATED', 'Player not authenticated');
+  }
+
+  if (!pixelsToBuy || !Array.isArray(pixelsToBuy) || pixelsToBuy.length === 0) {
+    return sendError(ws, 'NO_PIXELS', 'No pixels to buy.');
+  }
+  if (!signature || typeof signature !== 'string') {
+    return sendError(ws, 'INVALID_SIGNATURE', 'Invalid signature.');
+  }
+  const room = roomManager.createRoom(totalPrice)
+  roomManager.joinRoom(room.roomId, playerEoa, ws, totalPrice);
+  const allSignaturesCollected = await addAppSessionSignature(room.roomId, playerEoa, signature);
+      
+  logger.nitro(`Signature added for ${playerEoa} in room ${room.roomId}`);
+  
+  // Send confirmation to the signing player
+  ws.send(JSON.stringify({
+    type: 'appSession:signatureConfirmed',
+    roomId: room.roomId
+  }));
+  if (allSignaturesCollected) {
+    // Create an app session for this game if not already created
+    if (!hasAppSession(room.roomId)) {
+        try {
+          logger.nitro(`Creating app session for room ${room.roomId}`);
+          const appId = await createAppSessionWithSignatures(room.roomId);
+          logger.nitro(`App session created with ID ${appId}`);
+          // Store the app ID in the room object
+          room.appId = appId;
+        } catch (error) {
+          logger.error(`Failed to create app session for room ${room.roomId}:`, error);
+          // Continue with the game even if app session creation fails
+          // This allows the game to work in a fallback mode
+        }
+    }
+    await closeAppSession(room.roomId, ['0', room.betAmount])
+    const userSpending = await db.select()
+      .from(userSpendingTable).where(eq(userSpendingTable.user_id, playerEoa))[0];
+    if (userSpending) {
+      await db.update(userSpendingTable)
+        .set({ total_spent: userSpending.total_spent + BigInt(totalPrice) })
+        .where(eq(userSpendingTable.user_id, playerEoa));
+    }
+    else {
+      await db.insert(userSpendingTable).values({
+        user_id: playerEoa,
+        total_spent: BigInt(totalPrice)
+      });
+    }
+    for (const pixel of pixelsToBuy) {
+      await db.update(pixelDataTable).set({
+        owner: playerEoa,
+        last_bought: new Date(),
+        last_price: BigInt(pixel.price),
+        color: pixel.color
+      }).where(eq(pixelDataTable.id, pixel.id));
+    }
+    const pixels = await db.select().from(pixelDataTable);
+    for (const connection of connections) {
+      connection.ws.send(JSON.stringify({
+        type: 'map:state',
+        pixels
+      }));
+     }
+  }
 }
