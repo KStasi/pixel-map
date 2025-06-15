@@ -65,7 +65,7 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
 
             const nonce = Date.now();
             const appDefinition = {
-                protocol: "viper_duel_nitrolite_v0",
+                protocol: "map_map_map",
                 participants: [formattedParticipant, SERVER_ADDRESS] as `0x${string}`[],
                 weights: [0, 100],
                 quorum: 100,

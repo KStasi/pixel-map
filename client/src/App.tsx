@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
-import { useGameState } from "./hooks/useGameState";
-import { ErrorModal } from "./components/ErrorModal";
 import { Header } from "./components/Header";
 import { Map } from "./components/Map";
 import "./App.css";
@@ -11,9 +9,6 @@ import { useNitrolite } from "./context/NitroliteClientWrapper";
 
 function App() {
     // Player's Ethereum address - now managed by useMetaMask hook in Lobby
-
-    // Game view state
-    const [gameView, setGameView] = useState<"lobby" | "game">("lobby");
 
     // WebSocket connection
     const { error: wsError, lastMessage } = useWebSocket();
@@ -73,22 +68,6 @@ function App() {
             <div className="w-full flex justify-center py-4 relative z-40">
                 <Map />
             </div>
-
-            {/* Main content - Add z-10 to be above background but below header */}
-            <div className="flex-1 flex flex-col justify-center items-center p-4 relative z-10">
-                {/* Only show the app header in game view */}
-                {gameView === "game" && (
-                    <div className="absolute top-4 left-0 right-0 flex justify-center pointer-events-none">
-                        <div className="text-center backdrop-blur-sm bg-viper-charcoal/20 rounded-lg px-6 py-3 border border-viper-green/20">
-                            <h1 className="text-2xl sm:text-3xl font-bold font-pixel leading-none tracking-wider">
-                                MapMapMap
-                            </h1>
-                        </div>
-                    </div>
-                )}
-            </div>
-            {/* Error Modal */}
-            {showError && <ErrorModal message={errorDisplay || "An error occurred"} onClose={handleErrorClose} />}
         </div>
     );
 }

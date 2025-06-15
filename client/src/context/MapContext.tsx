@@ -2,13 +2,12 @@ import { createContext, useContext, useCallback, useRef, useEffect } from "react
 import type { ReactNode } from "react";
 import type { MapContextType, MapState } from "../types/map";
 import { useMap } from "../hooks/useMap";
-import { useWebSocket } from "../hooks/useWebSocket";
 
 const MapContext = createContext<MapContextType | null>(null);
 
 export function MapProvider({ children }: { children: ReactNode }) {
     const svgRef = useRef<HTMLObjectElement>(null);
-    const { state, fetchMap, togglePixelSelection, isPixelSelected, getPixelColor, updatePixelColor } = useMap();
+    const { state, togglePixelSelection, isPixelSelected, getPixelColor, updatePixelColor } = useMap();
 
     const handlePathClick = useCallback(
         (pathId: string) => {
