@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { WebSocketMessages, JoinRoomPayload, DirectionPayload } from "../types";
+import type { PixelInfo, WebSocketMessages } from "../types";
 
 // WebSocket hook for connecting to the game server
 export function useWebSocket() {
@@ -59,63 +59,12 @@ export function useWebSocket() {
         [isConnected]
     );
 
-    // Join a room
-    const joinRoom = useCallback(
-        (payload: JoinRoomPayload) => {
-            sendMessage({
-                type: "joinRoom",
-                payload,
-            });
-        },
-        [sendMessage]
-    );
-
-    // Change snake direction
-    const changeDirection = useCallback(
-        (payload: DirectionPayload) => {
-            sendMessage({
-                type: "changeDirection",
-                payload,
-            });
-        },
-        [sendMessage]
-    );
-
-    // Start the game (host only)
-    const startGame = useCallback(
-        (roomId: string) => {
-            sendMessage({
-                type: "startGame",
-                payload: { roomId },
-            });
-        },
-        [sendMessage]
-    );
-
-    // Get available rooms
-    const getAvailableRooms = useCallback(() => {
-        sendMessage({
-            type: "getAvailableRooms",
-        });
-    }, [sendMessage]);
-
-    // Send app session signature
-    const sendAppSessionSignature = useCallback(
-        (roomId: string, signature: string) => {
-            sendMessage({
-                type: "appSession:signature",
-                payload: { roomId, signature },
-            });
-        },
-        [sendMessage]
-    );
-
     // Send app session start game with signature
-    const sendAppSessionStartGame = useCallback(
-        (roomId: string, signature: string) => {
+    const sendAppSessionBuyPixels = useCallback(
+        (eoa: string, pixels: PixelInfo[], totalPrice: number, signature: string, requestToSign: unknown[]) => {
             sendMessage({
-                type: "appSession:startGame",
-                payload: { roomId, signature },
+                type: "appSession:buyPixels",
+                payload: { eoa, pixels, totalPrice, signature, requestToSign },
             });
         },
         [sendMessage]
@@ -125,11 +74,7 @@ export function useWebSocket() {
         isConnected,
         error,
         lastMessage,
-        joinRoom,
-        changeDirection,
-        startGame,
-        getAvailableRooms,
-        sendAppSessionSignature,
-        sendAppSessionStartGame,
+        // startGame,
+        sendAppSessionBuyPixels,
     };
 }

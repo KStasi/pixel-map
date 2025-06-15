@@ -5,17 +5,28 @@ import { useMapContext } from "../context/MapContext";
 import { usePixelPrices } from "../hooks/usePixelPrices";
 import { useMemo, useEffect, useState } from "react";
 import { useBalance } from "../hooks/useBalance";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { useWebSocketContext } from "../context/WebSocketContext";
+import type { PixelInfo } from "../types";
+import { useAccount } from "wagmi";
 
 interface AccountPanelProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
+const DECIMALS = 10 ** 18;
+const SERVER_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
     const mapContext = useMapContext();
     const { prices, isLoading: isLoadingPrices } = usePixelPrices();
     const { getBalance } = useBalance();
     const [balance, setBalance] = useState(0);
+    const { sendAppSessionBuyPixels } = useWebSocket();
+    const { keyPair } = useWebSocketContext();
+    const { client } = useWebSocketContext();
+    const { address } = useAccount();
 
     useEffect(() => {
         if (isOpen) {
@@ -37,6 +48,68 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
 
     const handleColorChange = (pathId: string, newColor: string) => {
         mapContext?.updatePixelColor(pathId, newColor);
+    };
+
+    const handlePaintSelected = async () => {
+        if (!keyPair?.privateKey || !mapContext?.selectedPixelIds.size) return;
+
+        try {
+            // Prepare pixel info for the request
+            const formattedParticipant = address as `0x${string}`;
+            const pixels: PixelInfo[] = selectedPixels.map((pixel) => ({
+                id: pixel.id,
+                color: mapContext.getPixelColor(pixel.pathId) || "#FFD700",
+                price: pixel.price,
+            }));
+
+            const totalAmount = parseFloat(total) * DECIMALS;
+
+            const nonce = Date.now();
+            const appDefinition = {
+                protocol: "viper_duel_nitrolite_v0",
+                participants: [formattedParticipant, SERVER_ADDRESS] as `0x${string}`[],
+                weights: [0, 100],
+                quorum: 100,
+                challenge: 0,
+                nonce: nonce,
+            };
+
+            const appSessionData = [
+                {
+                    definition: appDefinition,
+                    allocations: [
+                        {
+                            participant: formattedParticipant as `0x${string}`,
+                            asset: "usdc",
+                            amount: totalAmount.toString(),
+                        },
+                        {
+                            participant: SERVER_ADDRESS as `0x${string}`,
+                            asset: "usdc",
+                            amount: "0",
+                        },
+                    ],
+                },
+            ];
+            const signedMessage = (await client?.prepareAppSessionMessage(appSessionData)) as string;
+            console.log("signedMessage", signedMessage);
+
+            const parsedMessage = JSON.parse(signedMessage);
+            console.log("parsedMessage", parsedMessage);
+            const requestToSign = parsedMessage.req;
+            console.log("requestToSign", requestToSign);
+
+            // Send the buy pixels request
+            sendAppSessionBuyPixels(
+                address as `0x${string}`,
+                pixels,
+                parseFloat(total),
+                parsedMessage.sig,
+                requestToSign
+            );
+        } catch (error) {
+            console.error("Failed to paint selected pixels:", error);
+        }
     };
 
     if (!isOpen) return null;
@@ -108,7 +181,13 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                         <span className="text-lg font-semibold text-gray-900">Total:</span>
                         <span className="text-xl font-bold text-gray-900">${total}</span>
                     </div>
-                    <Button className="w-full text-black">Paint Selected</Button>
+                    <Button
+                        className="w-full text-black"
+                        onClick={handlePaintSelected}
+                        disabled={!mapContext?.selectedPixelIds.size}
+                    >
+                        Paint Selected
+                    </Button>
                 </div>
             </div>
         </div>

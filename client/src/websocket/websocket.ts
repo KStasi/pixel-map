@@ -9,8 +9,9 @@ import {
     createEIP712AuthMessageSigner,
     parseRPCResponse,
     createGetLedgerBalancesMessage,
+    createAppSessionMessage,
 } from "@erc7824/nitrolite";
-import type { Channel } from "@erc7824/nitrolite";
+import type { Channel, CreateAppSessionRequest } from "@erc7824/nitrolite";
 import { WalletStore } from "../store";
 
 // ===== Types =====
@@ -675,6 +676,18 @@ export class WebSocketClient {
      */
     async getLedgerBalances(address: `0x${string}`): Promise<unknown> {
         return this.sendRequest(await createGetLedgerBalancesMessage(this.signer.sign, address));
+    }
+    /**
+     * Sends a bala to the server
+     */
+    async prepareAppSessionMessage(appSessionData: CreateAppSessionRequest[]): Promise<string> {
+        return await createAppSessionMessage(this.signer.sign, appSessionData);
+    }
+    /**
+     * Sends a bala to the server
+     */
+    async createAppSessionMessage(appSessionData: CreateAppSessionRequest[]): Promise<unknown> {
+        return this.sendRequest(await createAppSessionMessage(this.signer.sign, appSessionData));
     }
 }
 
