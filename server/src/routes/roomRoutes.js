@@ -343,7 +343,7 @@ export async function handleBuyPixels(ws, payload, { roomManager, connections, d
   for (const connection of connections) {
     connection.ws.send(JSON.stringify({
       type: 'map:state',
-      pixels
+      payload:pixels
     }));
   }
 }
