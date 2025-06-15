@@ -17,7 +17,7 @@ export function StyledWalletButton({
 }: StyledWalletButtonProps) {
     const baseClasses = cn(
         // Base styling
-        "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none border-2",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer select-none border",
 
         // Size variants
         {
@@ -30,10 +30,10 @@ export function StyledWalletButton({
 
         // Variant styling
         {
-            "bg-gradient-to-br from-viper-green via-viper-green to-viper-green-dark text-viper-charcoal shadow-lg shadow-viper-green/25 hover:shadow-viper-green/40 hover:shadow-xl hover:from-viper-green-light hover:to-viper-green border-viper-green/40 hover:border-viper-green/60 font-bold tracking-wide relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700":
+            "bg-viper-green text-viper-charcoal shadow-sm hover:bg-viper-green/90 border-viper-green/40 hover:border-viper-green/60 font-bold tracking-wide":
                 variant === "viperGreen",
 
-            "bg-gradient-to-br from-viper-purple via-viper-purple to-viper-purple-dark text-white shadow-lg shadow-viper-purple/25 hover:shadow-viper-purple/40 hover:shadow-xl hover:from-viper-purple-light hover:to-viper-purple border-viper-purple/40 hover:border-viper-purple/60 font-bold tracking-wide relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700":
+            "bg-viper-purple text-white shadow-sm hover:bg-viper-purple/90 border-viper-purple/40 hover:border-viper-purple/60 font-bold tracking-wide":
                 variant === "viperPurple",
         },
 
