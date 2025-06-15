@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { MapState, Pixel } from "../types/map";
 import { useWebSocket } from "./useWebSocket";
 
@@ -11,18 +11,14 @@ export function useMap() {
     });
     // Store local color overrides for selected pixels
     const localSelectedColors = useRef(new Map<number, string>());
-    const { lastMessage } = useWebSocket();
+    const { dbMap, sendRequestMapState } = useWebSocket();
 
     const fetchMap = useCallback(async () => {
         try {
             let mockPixels: Pixel[] = [];
-            if (lastMessage?.type === "map:state") {
-                console.log("lastMessage", lastMessage.payload);
-                mockPixels = lastMessage.payload.map((p) => ({
-                    id: p.id,
-                    color: p.color,
-                    price: p.price ?? 0,
-                }));
+            if (dbMap) {
+                console.log("dbMap", dbMap);
+                mockPixels = Array.from(dbMap.values());
                 setState((prev) => {
                     const newPixels = new Map(mockPixels.map((p) => [p.id, p]));
                     // Remove local color for unselected pixels
@@ -44,7 +40,7 @@ export function useMap() {
         } finally {
             setState((prev) => ({ ...prev, isLoading: false }));
         }
-    }, [lastMessage]);
+    }, [dbMap]);
 
     const updatePixelColor = useCallback((pathId: string, color: string) => {
         const pixelId = parseInt(pathId.replace("path-", ""));
@@ -90,6 +86,20 @@ export function useMap() {
         },
         [state.pixels, state.selectedPixelIds]
     );
+    useEffect(() => {
+        console.log("sending map state");
+        sendRequestMapState();
+        const intervalId = setInterval(sendRequestMapState, 5000);
+        return () => clearInterval(intervalId);
+    }, [sendRequestMapState]);
+
+    // Initial fetch and periodic updates
+    useEffect(() => {
+        fetchMap();
+
+        const intervalId = setInterval(fetchMap, 5000);
+        return () => clearInterval(intervalId);
+    }, [fetchMap, dbMap]);
 
     return {
         state,

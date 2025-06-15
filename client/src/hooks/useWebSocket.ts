@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { PixelInfo, WebSocketMessages } from "../types";
+import type { Pixel } from "../types/map";
 
 // WebSocket hook for connecting to the game server
 export function useWebSocket() {
@@ -7,6 +8,7 @@ export function useWebSocket() {
     const [error, setError] = useState<string | null>(null);
     const webSocketRef = useRef<WebSocket | null>(null);
     const [lastMessage, setLastMessage] = useState<WebSocketMessages | null>(null);
+    const [dbMap, setDbMap] = useState<Map<number, Pixel> | null>(null);
 
     // WebSocket server URL (use environment variable if available)
     const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
@@ -32,6 +34,17 @@ export function useWebSocket() {
         webSocket.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
+
+                if (message.type === "map:state") {
+                    console.log("map:state", message.payload);
+                    const pixels = message.payload.map((p: any) => ({
+                        id: Number(p.id),
+                        color:
+                            typeof p.color === "string" ? p.color : `#${Number(p.color).toString(16).padStart(6, "0")}`,
+                        price: p.price ?? 0,
+                    }));
+                    setDbMap(new Map(pixels.map((p: any) => [p.id, p])));
+                }
 
                 setLastMessage(message as WebSocketMessages);
             } catch (err) {
@@ -80,6 +93,7 @@ export function useWebSocket() {
         isConnected,
         error,
         lastMessage,
+        dbMap,
         sendRequestMapState,
         sendAppSessionBuyPixels,
     };

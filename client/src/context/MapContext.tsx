@@ -9,7 +9,6 @@ const MapContext = createContext<MapContextType | null>(null);
 export function MapProvider({ children }: { children: ReactNode }) {
     const svgRef = useRef<HTMLObjectElement>(null);
     const { state, fetchMap, togglePixelSelection, isPixelSelected, getPixelColor, updatePixelColor } = useMap();
-    const { lastMessage, sendRequestMapState } = useWebSocket();
 
     const handlePathClick = useCallback(
         (pathId: string) => {
@@ -58,7 +57,8 @@ export function MapProvider({ children }: { children: ReactNode }) {
             const pathId = path.id;
             if (!pathId) return;
             const isSelected = isPixelSelected(pathId);
-            path.style.fill = getPixelColor(pathId);
+            const color = getPixelColor(pathId);
+            path.style.fill = color;
             path.style.stroke = isSelected ? "#FFD700" : "none";
             path.style.strokeWidth = isSelected ? "2" : "0";
         });
@@ -105,22 +105,6 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
         updateMapColors();
     }, [handlePathClick, handleOnMouseEnter, handleOnMouseLeave, updateMapColors]);
-
-    useEffect(() => {
-        console.log("sending map state");
-        sendRequestMapState();
-        const intervalId = setInterval(sendRequestMapState, 5000);
-        return () => clearInterval(intervalId);
-    }, [sendRequestMapState]);
-
-    // Initial fetch and periodic updates
-    useEffect(() => {
-        fetchMap();
-        console.log("lastMessage", lastMessage);
-
-        const intervalId = setInterval(fetchMap, 5000);
-        return () => clearInterval(intervalId);
-    }, [fetchMap, lastMessage]);
 
     // Update colors when map data changes
     useEffect(() => {

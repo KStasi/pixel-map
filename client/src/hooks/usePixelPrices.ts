@@ -18,8 +18,6 @@ export function usePixelPrices() {
                 price: Math.random() * 0.01, // Random price between 0 and 1000
             }));
 
-            console.log(mockPrices);
-
             setPrices(mockPrices);
             setError(null);
         } catch (err) {

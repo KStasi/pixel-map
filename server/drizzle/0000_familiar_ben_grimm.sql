@@ -1,6 +1,6 @@
 CREATE TABLE "pixel_data" (
 	"id" varchar(50) PRIMARY KEY NOT NULL,
-	"color" varchar(7) DEFAULT '#008000' NOT NULL,
+	"color" varchar(7) DEFAULT '#2AFF6B' NOT NULL,
 	"last_bought" timestamp DEFAULT now() NOT NULL,
 	"last_price" numeric DEFAULT 10000000000000000 NOT NULL,
 	"owner" varchar(42) DEFAULT '' NOT NULL
