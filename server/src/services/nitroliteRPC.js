@@ -2,13 +2,13 @@
  * Nitrolite RPC (WebSocket) client
  * This file handles all WebSocket communication with Nitrolite server
  */
-import { 
-    createAuthRequestMessage, 
-    createAuthVerifyMessage, 
+import {
+    createAuthRequestMessage,
+    createAuthVerifyMessage,
     createEIP712AuthMessageSigner,
-    createPingMessage, 
+    createPingMessage,
     NitroliteRPC,
-    parseRPCResponse
+    parseRPCResponse,
 } from "@erc7824/nitrolite";
 import dotenv from "dotenv";
 import { ethers } from "ethers";
@@ -23,7 +23,7 @@ import { getWalletClient } from "./nitroliteOnChain.js";
  */
 const getAuthDomain = () => {
     return {
-        name: "Viper Duel",
+        name: "MapMapMap",
     };
 };
 
@@ -162,7 +162,7 @@ export class NitroliteRPCClient {
         const authMessage = {
             wallet: this.address,
             participant: this.address,
-            app_name: "Viper Duel",
+            app_name: "MapMapMap",
             expire: expire, // 24 hours in seconds
             scope: "console",
             application: this.address,
@@ -192,7 +192,7 @@ export class NitroliteRPCClient {
 
             const handleAuthResponse = async (event) => {
                 const data = event.data || event;
-                
+
                 try {
                     const response = parseRPCResponse(data);
 
@@ -203,13 +203,13 @@ export class NitroliteRPCClient {
 
                         try {
                             logger.auth("Creating EIP-712 signing function...");
-                            
+
                             // Ensure we have a wallet client for EIP-712 signing
                             if (!this.walletClient) {
                                 logger.auth("Initializing wallet client for EIP-712 signing...");
                                 this.walletClient = await getWalletClient(this.privateKey);
                             }
-                            
+
                             const eip712SigningFunction = createEIP712AuthMessageSigner(
                                 this.walletClient,
                                 {
@@ -222,7 +222,7 @@ export class NitroliteRPCClient {
                                         amount: allowance.amount.toString(),
                                     })),
                                 },
-                                getAuthDomain(),
+                                getAuthDomain()
                             );
 
                             logger.auth("Calling createAuthVerifyMessage...");
@@ -245,7 +245,7 @@ export class NitroliteRPCClient {
                         logger.auth("Authentication successful");
 
                         cleanup();
-                        
+
                         // Set status to connected
                         this.setStatus(WSStatus.CONNECTED);
 
@@ -254,7 +254,8 @@ export class NitroliteRPCClient {
                             // need to create one
                             const channels = await this.getChannelInfo();
                             // Check if we have valid channels
-                            const hasValidChannel = channels && Array.isArray(channels) && channels.length > 0 && channels[0] !== null;
+                            const hasValidChannel =
+                                channels && Array.isArray(channels) && channels.length > 0 && channels[0] !== null;
 
                             if (!hasValidChannel) {
                                 logger.nitro("No valid channels found after authentication, will create one");
@@ -282,11 +283,13 @@ export class NitroliteRPCClient {
                         logger.auth("Ignoring non-auth message during authentication:", error.message);
                         return;
                     }
-                    
+
                     logger.error("Error handling auth response:", error);
                     logger.error("Error stack:", error.stack);
                     cleanup();
-                    reject(new Error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`));
+                    reject(
+                        new Error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`)
+                    );
                 }
             };
 
@@ -523,7 +526,7 @@ export async function initializeRPCClient() {
 
         // Initialize wallet client before connecting (needed for authentication)
         rpcClient.walletClient = await getWalletClient(process.env.SERVER_PRIVATE_KEY);
-        
+
         await rpcClient.connect();
 
         logger.system("Checking for existing channels...");

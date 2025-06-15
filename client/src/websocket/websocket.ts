@@ -8,8 +8,10 @@ import {
     createAuthVerifyMessageWithJWT,
     createEIP712AuthMessageSigner,
     parseRPCResponse,
+    createGetLedgerBalancesMessage,
+    createAppSessionMessage,
 } from "@erc7824/nitrolite";
-import type { Channel } from "@erc7824/nitrolite";
+import type { Channel, CreateAppSessionRequest } from "@erc7824/nitrolite";
 import { WalletStore } from "../store";
 
 // ===== Types =====
@@ -26,10 +28,19 @@ export const WebSocketReadyState = {
 
 export type WebSocketReadyState = (typeof WebSocketReadyState)[keyof typeof WebSocketReadyState];
 
+const USDC_TOKEN_ADDRESS = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359";
+
 /**
  * WebSocket connection status
  */
-export type WSStatus = "connected" | "connecting" | "disconnected" | "reconnecting" | "reconnect_failed" | "auth_failed" | "authenticating";
+export type WSStatus =
+    | "connected"
+    | "connecting"
+    | "disconnected"
+    | "reconnecting"
+    | "reconnect_failed"
+    | "auth_failed"
+    | "authenticating";
 
 /**
  * WebSocket client configuration options
@@ -64,7 +75,7 @@ export const getAddressFromPublicKey = (publicKey: string): string => {
  */
 const getAuthDomain = () => {
     return {
-        name: "Viper Duel",
+        name: "MapMapMap",
     };
 };
 
@@ -272,11 +283,18 @@ export class WebSocketClient {
             authRequest = await createAuthRequestMessage({
                 wallet: ethers.getAddress(privyWalletAddress) as `0x${string}`, // wallet
                 participant: this.signer.address, //session key
-                app_name: "Viper Duel",
+                app_name: "MapMapMap",
                 expire: expire,
                 scope: "app.nitro.aura",
                 application: ethers.getAddress(privyWalletAddress) as `0x${string}`,
-                allowances: [],
+                allowances: USDC_TOKEN_ADDRESS
+                    ? [
+                          {
+                              symbol: USDC_TOKEN_ADDRESS,
+                              amount: "100000000000000000000",
+                          },
+                      ]
+                    : [],
             });
         }
 
@@ -305,7 +323,14 @@ export class WebSocketClient {
                                     application: privyWalletAddress,
                                     participant: this.signer.address,
                                     expire: expire,
-                                    allowances: [],
+                                    allowances: USDC_TOKEN_ADDRESS
+                                        ? [
+                                              {
+                                                  asset: USDC_TOKEN_ADDRESS,
+                                                  amount: "100000000000000000000",
+                                              },
+                                          ]
+                                        : [],
                                 },
                                 getAuthDomain()
                             );
@@ -322,7 +347,11 @@ export class WebSocketClient {
                             clearTimeout(authTimeout);
                             this.ws?.removeEventListener("message", handleAuthResponse);
                             reject(
-                                new Error(`EIP-712 auth_verify failed: ${eip712Error instanceof Error ? eip712Error.message : String(eip712Error)}`)
+                                new Error(
+                                    `EIP-712 auth_verify failed: ${
+                                        eip712Error instanceof Error ? eip712Error.message : String(eip712Error)
+                                    }`
+                                )
                             );
                             return;
                         }
@@ -340,9 +369,14 @@ export class WebSocketClient {
                         }
 
                         // Authentication successful
-                        const paramsForChannels = [{ participant: ethers.getAddress(privyWalletAddress) as `0x${string}` }];
+                        const paramsForChannels = [
+                            { participant: ethers.getAddress(privyWalletAddress) as `0x${string}` },
+                        ];
                         const getChannelsMessage = NitroliteRPC.createRequest(10, "get_channels", paramsForChannels);
-                        const getChannelMessage = await NitroliteRPC.signRequestMessage(getChannelsMessage, this.signer.sign);
+                        const getChannelMessage = await NitroliteRPC.signRequestMessage(
+                            getChannelsMessage,
+                            this.signer.sign
+                        );
                         console.log("getChannelMessage", getChannelMessage);
                         this.ws?.send(JSON.stringify(getChannelMessage));
                         clearTimeout(authTimeout);
@@ -372,7 +406,9 @@ export class WebSocketClient {
 
                     clearTimeout(authTimeout);
                     this.ws?.removeEventListener("message", handleAuthResponse);
-                    reject(new Error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`));
+                    reject(
+                        new Error(`Authentication error: ${error instanceof Error ? error.message : String(error)}`)
+                    );
                 }
             };
 
@@ -444,7 +480,10 @@ export class WebSocketClient {
 
         this.stopPingInterval();
 
-        if (this.ws && (this.ws.readyState === WebSocketReadyState.OPEN || this.ws.readyState === WebSocketReadyState.CONNECTING)) {
+        if (
+            this.ws &&
+            (this.ws.readyState === WebSocketReadyState.OPEN || this.ws.readyState === WebSocketReadyState.CONNECTING)
+        ) {
             try {
                 this.ws.close(1000, "Normal closure");
             } catch (err) {
@@ -503,7 +542,10 @@ export class WebSocketClient {
             }
 
             // Type guard to check for property existence
-            const hasProperty = <T extends object, K extends string>(obj: T, prop: K): obj is T & Record<K, unknown> => {
+            const hasProperty = <T extends object, K extends string>(
+                obj: T,
+                prop: K
+            ): obj is T & Record<K, unknown> => {
                 return prop in obj;
             };
 
@@ -553,7 +595,9 @@ export class WebSocketClient {
                 }
             }
         } catch (error) {
-            this.emitError(new Error(`Error processing message: ${error instanceof Error ? error.message : String(error)}`));
+            this.emitError(
+                new Error(`Error processing message: ${error instanceof Error ? error.message : String(error)}`)
+            );
         }
     }
 
@@ -583,7 +627,9 @@ export class WebSocketClient {
 
             requestId = parsedRequest.req[0];
         } catch (parseError) {
-            throw new Error(`Failed to parse request: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+            throw new Error(
+                `Failed to parse request: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+            );
         }
 
         return new Promise((resolve, reject) => {
@@ -624,12 +670,35 @@ export class WebSocketClient {
     async ping(): Promise<unknown> {
         return this.sendRequest(await createPingMessage(this.signer.sign));
     }
+
+    /**
+     * Sends a bala to the server
+     */
+    async getLedgerBalances(address: `0x${string}`): Promise<unknown> {
+        return this.sendRequest(await createGetLedgerBalancesMessage(this.signer.sign, address));
+    }
+    /**
+     * Sends a bala to the server
+     */
+    async prepareAppSessionMessage(appSessionData: CreateAppSessionRequest[]): Promise<string> {
+        return await createAppSessionMessage(this.signer.sign, appSessionData);
+    }
+    /**
+     * Sends a bala to the server
+     */
+    async createAppSessionMessage(appSessionData: CreateAppSessionRequest[]): Promise<unknown> {
+        return this.sendRequest(await createAppSessionMessage(this.signer.sign, appSessionData));
+    }
 }
 
 /**
  * Creates a new WebSocket client
  */
-export function createWebSocketClient(url: string, signer: WalletSigner, options?: Partial<WebSocketClientOptions>): WebSocketClient {
+export function createWebSocketClient(
+    url: string,
+    signer: WalletSigner,
+    options?: Partial<WebSocketClientOptions>
+): WebSocketClient {
     return new WebSocketClient(url, signer, {
         autoReconnect: true,
         reconnectDelay: 1000,

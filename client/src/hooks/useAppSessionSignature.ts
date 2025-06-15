@@ -1,14 +1,13 @@
 import { useState, useCallback } from "react";
 import { useWebSocketContext } from "../context/WebSocketContext";
 import { createEthersSigner } from "../context/createSigner";
-import type { AppSessionSignatureRequestMessage, AppSessionStartGameRequestMessage } from "../types";
+import type { AppSessionSignatureRequestMessage, AppSessionBuyPixelsRequestMessage, PixelInfo } from "../types";
 
 /**
  * Hook for handling app session signature requests
  */
 export function useAppSessionSignature(
-    sendSignature?: (roomId: string, signature: string) => void,
-    sendStartGame?: (roomId: string, signature: string) => void
+    sendBuyPixels?: (eoa: string, pixels: PixelInfo[], totalPrice: number, signature: string) => void
 ) {
     const [isSigningInProgress, setIsSigningInProgress] = useState(false);
     const [signatureError, setSignatureError] = useState<string | null>(null);
@@ -18,7 +17,11 @@ export function useAppSessionSignature(
      * Signs an app session message and sends it to the server
      */
     const signAppSessionMessage = useCallback(
-        async (roomId: string, requestToSign: unknown[], messageType: "appSession:signature" | "appSession:startGame") => {
+        async (
+            roomId: string,
+            requestToSign: unknown[],
+            messageType: "appSession:signature" | "appSession:buyPixels"
+        ) => {
             if (!keyPair?.privateKey) {
                 throw new Error("No private key available for signing");
             }
@@ -41,8 +44,8 @@ export function useAppSessionSignature(
                 // Send the signature to the server using the provided callback
                 if (messageType === "appSession:signature" && sendSignature) {
                     sendSignature(roomId, signature);
-                } else if (messageType === "appSession:startGame" && sendStartGame) {
-                    sendStartGame(roomId, signature);
+                } else if (messageType === "appSession:buyPixels" && sendBuyPixels) {
+                    sendBuyPixels(eoa, pixels, totalPrice, signature);
                 } else {
                     throw new Error("No send function available for message type: " + messageType);
                 }
@@ -57,7 +60,7 @@ export function useAppSessionSignature(
                 throw error;
             }
         },
-        [keyPair, sendSignature, sendStartGame]
+        [keyPair, sendSignature, sendBuyPixels]
     );
 
     /**
@@ -79,9 +82,9 @@ export function useAppSessionSignature(
      * Handles participant A signature request (when starting game)
      */
     const handleParticipantASignature = useCallback(
-        async (message: AppSessionStartGameRequestMessage) => {
+        async (message: AppSessionBuyPixelsRequestMessage) => {
             try {
-                await signAppSessionMessage(message.roomId, message.requestToSign, "appSession:startGame");
+                await signAppSessionMessage(message.roomId, message.requestToSign, "appSession:buyPixels");
             } catch (error) {
                 console.error("Failed to sign as participant A:", error);
                 throw error;

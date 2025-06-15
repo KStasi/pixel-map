@@ -5,7 +5,7 @@ import { useStore } from "../store/storeUtils";
 import { parseTokenUnits } from "./utils/tokenDecimals";
 import { useWebSocketContext } from "../context/WebSocketContext";
 import type { State } from "@erc7824/nitrolite";
-import { USDC_ADDRESS } from '../context/NitroliteClientWrapper';
+import { USDC_ADDRESS } from "../context/NitroliteClientWrapper";
 
 // Define localStorage keys
 const STORAGE_KEYS = {
@@ -51,7 +51,9 @@ export function useChannel() {
      */
     const saveChannelToStorage = useCallback((state: State, channelId: string) => {
         try {
-            const stateData = JSON.stringify(state, (_, value) => (typeof value === "bigint" ? value.toString() + "n" : value));
+            const stateData = JSON.stringify(state, (_, value) =>
+                typeof value === "bigint" ? value.toString() + "n" : value
+            );
 
             localStorage.setItem(STORAGE_KEYS.CHANNEL_STATE, stateData);
             localStorage.setItem(STORAGE_KEYS.CHANNEL_ID, channelId);
@@ -78,7 +80,8 @@ export function useChannel() {
                     let message = "Cannot create a new channel because one already exists.";
 
                     if (source === "accountChannels") {
-                        message += " You have active channel(s). Please close existing channels before creating a new one.";
+                        message +=
+                            " You have active channel(s). Please close existing channels before creating a new one.";
                     } else {
                         message += " Please close the existing channel before creating a new one.";
                     }
@@ -151,7 +154,10 @@ export function useChannel() {
             // Log client methods for deposit
             console.log("[depositToChannel] Available client methods:", Object.keys(client));
 
-            const amountBigInt = typeof amount === "string" && !amount.startsWith("0x") ? parseTokenUnits(tokenAddress, amount) : BigInt(amount);
+            const amountBigInt =
+                typeof amount === "string" && !amount.startsWith("0x")
+                    ? parseTokenUnits(tokenAddress, amount)
+                    : BigInt(amount);
 
             await client.deposit(USDC_ADDRESS, amountBigInt);
             WalletStore.openChannel(tokenAddress, amountBigInt.toString());
@@ -199,5 +205,6 @@ export function useChannel() {
         isChannelOpen: walletState.channelOpen,
         isLoading,
         error,
+        checkForExistingChannel,
     };
 }
