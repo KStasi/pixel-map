@@ -1,5 +1,5 @@
 {
-  "id": "2f344255-b2a5-424b-a484-822e400d4b26",
+  "id": "a35257c6-e1f2-4e3a-8ec0-74b1c423dc16",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -30,7 +30,7 @@
         },
         "last_price": {
           "name": "last_price",
-          "type": "bigint",
+          "type": "numeric",
           "primaryKey": false,
           "notNull": true,
           "default": 10000000000000000
@@ -80,7 +80,7 @@
         },
         "total_spent": {
           "name": "total_spent",
-          "type": "bigint",
+          "type": "numeric",
           "primaryKey": false,
           "notNull": true,
           "default": 0

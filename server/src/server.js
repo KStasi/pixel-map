@@ -246,31 +246,19 @@ wss.on('connection', (ws) => {
     // Process message based on type
     try {
       switch (data.type) {
-        case 'joinRoom':
-          await handleJoinRoom(ws, data.payload, context);
-          break;
-        case 'startGame':
-          await handleStartGame(ws, data.payload, context);
-          break;
-        case 'changeDirection':
-          await handleDirectionChange(ws, data.payload, context);
-          break;
-        case 'getAvailableRooms':
-          await handleGetAvailableRooms(ws, context);
-          break;
         case 'appSession:signature':
           await handleAppSessionSignature(ws, data.payload, context);
           break;
         case 'appSession:startGame':
           await handleAppSessionStartGame(ws, data.payload, context);
           break;
-        case 'getPrices':
+        case 'pixel:prices':
           await handleGetPrices(ws, context);
           break;
-        case 'getMap':
+        case 'map:state':
           await handleGetMap(ws, context);
           break;
-        case 'acceptBuy':
+        case 'appSession:buyPixels':
         // Import the buyPixels handler dynamically to avoid circular dependencies
           await handleBuyPixels(ws, data.payload, context);
           break;
@@ -340,8 +328,8 @@ async function handleGetPrices(ws, { db, sendError }) {
   try {
     const prices = await db.select().from(pixelDataTable);
     ws.send(JSON.stringify({
-      type: 'prices',
-      data: await Promise.all(prices.map(async (pixelData) => {
+      type: 'pixel:prices',
+      payload: await Promise.all(prices.map(async (pixelData) => {
         const price = await calculatePixelPrice(pixelData);
         return {
           id: pixelData.id,
@@ -359,8 +347,8 @@ async function handleGetMap(ws, { db, sendError }) {
   try {
     const pixels = await db.select().from(pixelDataTable);
     ws.send(JSON.stringify({
-      type: 'prices',
-      data: pixels
+      type: 'map:state',
+      payload: pixels
     }));
   } catch (error) {
     logger.error('Error fetching prices:', error);

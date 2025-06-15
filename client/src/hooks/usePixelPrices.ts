@@ -15,7 +15,7 @@ export function usePixelPrices() {
             // Mock API call - in real implementation, replace with actual API endpoint
             const mockPrices: PixelPrice[] = Array.from({ length: 3030 }, (_, index) => ({
                 id: index + 1,
-                price: Math.random() * 10, // Random price between 0 and 1000
+                price: Math.random() * 0.01, // Random price between 0 and 1000
             }));
 
             console.log(mockPrices);
