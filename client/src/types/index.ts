@@ -46,7 +46,7 @@ export interface BuyPixelsMessage extends WebSocketMessage {
 
 export interface MapStateMessage extends WebSocketMessage {
     type: "map:state";
-    pixels: PixelInfo[];
+    payload: PixelInfo[];
 }
 
 export interface PurchaseSuccessMessage extends WebSocketMessage {

@@ -9,7 +9,7 @@ export function useWebSocket() {
     const [lastMessage, setLastMessage] = useState<WebSocketMessages | null>(null);
 
     // WebSocket server URL (use environment variable if available)
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8090";
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8080";
 
     // Initialize WebSocket connection
     useEffect(() => {
@@ -69,12 +69,18 @@ export function useWebSocket() {
         },
         [sendMessage]
     );
+    // Send app session start game with signature
+    const sendRequestMapState = useCallback(() => {
+        sendMessage({
+            type: "map:state",
+        });
+    }, [sendMessage]);
 
     return {
         isConnected,
         error,
         lastMessage,
-        // startGame,
+        sendRequestMapState,
         sendAppSessionBuyPixels,
     };
 }

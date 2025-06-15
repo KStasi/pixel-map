@@ -15,8 +15,7 @@ interface AccountPanelProps {
     onClose: () => void;
 }
 
-const DECIMALS = 10 ** 6;
-const SERVER_ADDRESS = "0x93b05F6d4EdcADCBa856D41CD1Fe94263c368bB0";
+const SERVER_ADDRESS = "0xdec549172c803425EB96c11D42fe18874037be0D";
 
 export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
     const mapContext = useMapContext();
@@ -62,7 +61,7 @@ export function AccountPanel({ isOpen, onClose }: AccountPanelProps) {
                 price: pixel.price,
             }));
 
-            const totalAmount = parseFloat(total)// * DECIMALS;
+            const totalAmount = parseFloat(total); // * DECIMALS;
 
             const nonce = Date.now();
             const appDefinition = {

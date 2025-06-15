@@ -1,13 +1,15 @@
 import { createContext, useContext, useCallback, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
-import type { MapContextType } from "../types/map";
+import type { MapContextType, MapState } from "../types/map";
 import { useMap } from "../hooks/useMap";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 const MapContext = createContext<MapContextType | null>(null);
 
 export function MapProvider({ children }: { children: ReactNode }) {
     const svgRef = useRef<HTMLObjectElement>(null);
     const { state, fetchMap, togglePixelSelection, isPixelSelected, getPixelColor, updatePixelColor } = useMap();
+    const { lastMessage, sendRequestMapState } = useWebSocket();
 
     const handlePathClick = useCallback(
         (pathId: string) => {
@@ -18,7 +20,10 @@ export function MapProvider({ children }: { children: ReactNode }) {
             if (!path) return;
 
             togglePixelSelection(pathId);
-            path.style.fill = isPixelSelected(pathId) ? "#FFD700" : getPixelColor(pathId);
+            const isSelected = isPixelSelected(pathId);
+            path.style.fill = getPixelColor(pathId);
+            path.style.stroke = isSelected ? "#FFD700" : "none";
+            path.style.strokeWidth = isSelected ? "2" : "0";
         },
         [togglePixelSelection, isPixelSelected, getPixelColor]
     );
@@ -39,15 +44,9 @@ export function MapProvider({ children }: { children: ReactNode }) {
 
             const path = svgDoc.getElementById(pathId);
             if (!path) return;
-
-            if (isPixelSelected(pathId)) {
-                path.style.fill = "#FFD700";
-                return;
-            }
-
             path.style.fill = getPixelColor(pathId);
         },
-        [isPixelSelected, getPixelColor]
+        [getPixelColor]
     );
 
     const updateMapColors = useCallback(() => {
@@ -58,21 +57,29 @@ export function MapProvider({ children }: { children: ReactNode }) {
         paths.forEach((path) => {
             const pathId = path.id;
             if (!pathId) return;
-
-            if (isPixelSelected(pathId)) {
-                path.style.fill = "#FFD700";
-            } else {
-                path.style.fill = getPixelColor(pathId);
-            }
+            const isSelected = isPixelSelected(pathId);
+            path.style.fill = getPixelColor(pathId);
+            path.style.stroke = isSelected ? "#FFD700" : "none";
+            path.style.strokeWidth = isSelected ? "2" : "0";
         });
-    }, [isPixelSelected, getPixelColor]);
+    }, [getPixelColor, isPixelSelected]);
+
+    const handleColorUpdate = useCallback(
+        (pathId: string, color: string) => {
+            updatePixelColor(pathId, color);
+            // Ensure the SVG is updated after state change
+            setTimeout(() => {
+                updateMapColors();
+            }, 0);
+        },
+        [updatePixelColor, updateMapColors]
+    );
 
     const initializeMapPaths = useCallback(() => {
         const svgDoc = svgRef.current?.contentDocument;
         if (!svgDoc) return;
 
         const paths = svgDoc.querySelectorAll("path");
-        console.log("Found paths:", paths.length);
 
         paths.forEach((path) => {
             const pathId = path.id;
@@ -99,12 +106,21 @@ export function MapProvider({ children }: { children: ReactNode }) {
         updateMapColors();
     }, [handlePathClick, handleOnMouseEnter, handleOnMouseLeave, updateMapColors]);
 
+    useEffect(() => {
+        console.log("sending map state");
+        sendRequestMapState();
+        const intervalId = setInterval(sendRequestMapState, 5000);
+        return () => clearInterval(intervalId);
+    }, [sendRequestMapState]);
+
     // Initial fetch and periodic updates
     useEffect(() => {
         fetchMap();
+        console.log("lastMessage", lastMessage);
+
         const intervalId = setInterval(fetchMap, 5000);
         return () => clearInterval(intervalId);
-    }, [fetchMap]);
+    }, [fetchMap, lastMessage]);
 
     // Update colors when map data changes
     useEffect(() => {
@@ -118,7 +134,7 @@ export function MapProvider({ children }: { children: ReactNode }) {
                 selectedPixelIds: state.selectedPixelIds,
                 togglePixelSelection,
                 getPixelColor,
-                updatePixelColor,
+                updatePixelColor: handleColorUpdate,
                 isLoading: state.isLoading,
                 error: state.error,
                 initializeMapPaths,

@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { MapState, Pixel } from "../types/map";
+import { useWebSocket } from "./useWebSocket";
 
 export function useMap() {
     const [state, setState] = useState<MapState>({
@@ -8,62 +9,63 @@ export function useMap() {
         isLoading: true,
         error: null,
     });
+    // Store local color overrides for selected pixels
+    const localSelectedColors = useRef(new Map<number, string>());
+    const { lastMessage } = useWebSocket();
 
     const fetchMap = useCallback(async () => {
         try {
-            // Mock API call - replace with actual endpoint
-            const mockPixels = Array.from({ length: 3030 }, (_, index) => ({
-                id: index + 1,
-                color: Math.floor(Math.random() * 0xffffff),
-            }));
-
-            setState((prev) => {
-                const newPixels = new Map(mockPixels.map((p) => [p.id, p]));
-
-                // Preserve colors for selected pixels
-                prev.selectedPixelIds.forEach((id) => {
-                    const existingPixel = prev.pixels.get(id);
-                    if (existingPixel) {
-                        newPixels.set(id, existingPixel);
+            let mockPixels: Pixel[] = [];
+            if (lastMessage?.type === "map:state") {
+                console.log("lastMessage", lastMessage.payload);
+                mockPixels = lastMessage.payload.map((p) => ({
+                    id: p.id,
+                    color: p.color,
+                    price: p.price ?? 0,
+                }));
+                setState((prev) => {
+                    const newPixels = new Map(mockPixels.map((p) => [p.id, p]));
+                    // Remove local color for unselected pixels
+                    for (const id of localSelectedColors.current.keys()) {
+                        if (!prev.selectedPixelIds.has(id)) {
+                            localSelectedColors.current.delete(id);
+                        }
                     }
+                    return {
+                        ...prev,
+                        pixels: newPixels,
+                        error: null,
+                    };
                 });
-
-                return {
-                    ...prev,
-                    pixels: newPixels,
-                    error: null,
-                };
-            });
+            } else {
+            }
         } catch (err) {
             setState((prev) => ({ ...prev, error: "Failed to fetch map data" }));
         } finally {
             setState((prev) => ({ ...prev, isLoading: false }));
         }
-    }, []);
+    }, [lastMessage]);
 
     const updatePixelColor = useCallback((pathId: string, color: string) => {
         const pixelId = parseInt(pathId.replace("path-", ""));
-        const colorNumber = parseInt(color.replace("#", ""), 16);
-
-        setState((prev) => {
-            const newPixels = new Map(prev.pixels);
-            const pixel = newPixels.get(pixelId);
-            if (pixel) {
-                newPixels.set(pixelId, { ...pixel, color: colorNumber });
-            }
-            return { ...prev, pixels: newPixels };
-        });
+        localSelectedColors.current.set(pixelId, color);
+        setState((prev) => ({ ...prev })); // trigger rerender
     }, []);
 
     const togglePixelSelection = useCallback((pathId: string) => {
         const pixelId = parseInt(pathId.replace("path-", ""));
-
         setState((prev) => {
             const newSelectedIds = new Set(prev.selectedPixelIds);
             if (newSelectedIds.has(pixelId)) {
                 newSelectedIds.delete(pixelId);
+                localSelectedColors.current.delete(pixelId);
             } else {
                 newSelectedIds.add(pixelId);
+                // Set initial local color to current server color
+                const pixel = prev.pixels.get(pixelId);
+                if (pixel) {
+                    localSelectedColors.current.set(pixelId, pixel.color);
+                }
             }
             return { ...prev, selectedPixelIds: newSelectedIds };
         });
@@ -80,10 +82,13 @@ export function useMap() {
     const getPixelColor = useCallback(
         (pathId: string) => {
             const pixelId = parseInt(pathId.replace("path-", ""));
+            if (state.selectedPixelIds.has(pixelId) && localSelectedColors.current.has(pixelId)) {
+                return localSelectedColors.current.get(pixelId)!;
+            }
             const pixel = state.pixels.get(pixelId);
-            return pixel ? `#${pixel.color.toString(16).padStart(6, "0")}` : "#2AFF6B";
+            return pixel ? pixel.color : "#2AFF6B";
         },
-        [state.pixels]
+        [state.pixels, state.selectedPixelIds]
     );
 
     return {

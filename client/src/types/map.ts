@@ -1,6 +1,6 @@
 export interface Pixel {
     id: number;
-    color: number;
+    color: string;
     price?: number;
 }
 
